@@ -31,7 +31,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li>A fake oak sign block is shown to the player at a position below their feet
  *       (client-side only, no block is modified on the server).</li>
  *   <li>The sign-editor screen opens immediately.</li>
- *   <li>The player types their password on line 0 and clicks "Done".</li>
+ *   <li>The player types their password on the first line and clicks "Done".</li>
  *   <li>The {@code UPDATE_SIGN} packet is intercepted by the PacketEvents listener;
  *       the block change is cancelled and the text from line 0 is used as the password.</li>
  *   <li>The response is forwarded to the Velocity proxy via the plugin-message channel.</li>
