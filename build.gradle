@@ -1,0 +1,26 @@
+plugins {
+    id 'java'
+}
+
+allprojects {
+    group = 'com.betterlogin'
+    version = '1.0.0'
+}
+
+subprojects {
+    apply plugin: 'java'
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(21)
+        }
+    }
+
+    repositories {
+        mavenCentral()
+        maven { url = 'https://repo.papermc.io/repository/maven-public/' }
+        maven { url = 'https://repo.velocitypowered.com/snapshots/' }
+        maven { url = 'https://repo.codemc.io/repository/maven-releases/' }
+        maven { url = 'https://jitpack.io' }
+    }
+}
