@@ -1,9 +1,0 @@
-{
-  "id": "better-login",
-  "name": "BetterLogin",
-  "version": "1.0.0",
-  "description": "Seamless vanilla-dialog authentication for hybrid Minecraft networks",
-  "authors": ["BetterLogin"],
-  "main": "com.betterlogin.velocity.BetterLoginPlugin",
-  "dependencies": []
-}
