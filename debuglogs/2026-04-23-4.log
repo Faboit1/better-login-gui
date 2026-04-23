@@ -1,0 +1,142 @@
+[06:58:55] [main/INFO] [com.velocitypowered.proxy.VelocityServer]: Booting up Velocity 3.5.0-SNAPSHOT (git-470cd7a9-b580)...
+[06:58:55] [main/INFO] [com.velocitypowered.proxy.network.ConnectionManager]: Connections will use epoll channels, libdeflate (Linux x86_64) compression, OpenSSL 3.x.x (Linux x86_64) ciphers
+[06:58:55] [main/WARN] [com.velocitypowered.proxy.config.VelocityConfiguration]: The proxy is running in offline mode! This is a security risk and you will NOT receive any support!
+[06:58:55] [main/INFO] [com.velocitypowered.proxy.VelocityServer]: Loading localizations...
+[06:58:55] [main/INFO] [com.velocitypowered.proxy.VelocityServer]: Loading plugins...
+[06:58:56] [main/INFO] [com.velocitypowered.proxy.plugin.VelocityPluginManager]: Loaded plugin authmevelocity 4.3.0 by xQuickGlare, 4drian3d
+[06:58:56] [main/INFO] [com.velocitypowered.proxy.plugin.VelocityPluginManager]: Loaded plugin better-login 1.0.0 by BetterLogin
+[06:58:56] [main/WARN] [floodgate]: en_ is not a supported Floodgate language.
+[06:58:56] [main/INFO] [floodgate]: Took 140ms to boot Floodgate
+[06:58:56] [main/INFO] [com.velocitypowered.proxy.plugin.VelocityPluginManager]: Loaded plugin floodgate 2.2.5-SNAPSHOT (b131-869338c) by GeyserMC
+[06:58:56] [main/INFO] [com.velocitypowered.proxy.plugin.VelocityPluginManager]: Loaded plugin geyser 2.9.5-b1106 (git-master-8960ced) by GeyserMC
+[06:58:56] [main/WARN] [limboapi]: Current LimboAPI version doesn't support current Velocity version (protocol version numbers: supported - 761, velocity - 774)
+[06:58:56] [main/WARN] [limboapi]: Please update LimboAPI (https://github.com/Elytrium/LimboAPI/releases). LimboAPI support: https://ely.su/discord
+[06:58:56] [main/INFO] [com.velocitypowered.proxy.plugin.VelocityPluginManager]: Loaded plugin limboapi 1.1.0 by Elytrium (https://elytrium.net/)
+[06:58:56] [main/INFO] [com.velocitypowered.proxy.plugin.VelocityPluginManager]: Loaded plugin packetevents 2.12.1 by retrooper
+[06:58:56] [main/INFO] [com.velocitypowered.proxy.plugin.VelocityPluginManager]: Loaded plugin skinsrestorer 15.11.0 by knat, AlexProgrammerDE, Blackfire62, McLive
+[06:58:56] [main/INFO] [Limbo Handler]: Maintenance plugin not detected - maintenance checks disabled.
+[06:58:56] [main/INFO] [com.velocitypowered.proxy.plugin.VelocityPluginManager]: Loaded plugin velocity-limbo-handler 1.8.1 by Aksel Glyholt
+[06:58:56] [main/INFO] [com.velocitypowered.proxy.plugin.VelocityPluginManager]: Loaded plugin viaversion 5.8.1 by _MylesC, creeper123123321, Gerrygames, kennytv, Matsv, EnZaXD, RK_01
+[06:58:56] [main/INFO] [com.velocitypowered.proxy.plugin.VelocityPluginManager]: Loaded plugin viabackwards 5.8.1 by Matsv, kennytv, Gerrygames, creeper123123321, ForceUpdate1, EnZaXD
+[06:58:56] [main/INFO] [com.velocitypowered.proxy.plugin.VelocityPluginManager]: Loaded plugin viarewind 4.0.15 by EnZaXD, Gerrygames, creeper123123321
+[06:58:56] [main/INFO] [com.velocitypowered.proxy.VelocityServer]: Loaded 12 plugins
+[06:58:56] [AuthMeVelocity - Task Executor #0/INFO] [authmevelocity]:  --- AuthMeVelocity ---
+[06:58:56] [AuthMeVelocity - Task Executor #0/INFO] [authmevelocity]: AuthServers: [lobby, gens]
+[06:58:56] [AuthMeVelocity - Task Executor #0/ERROR] [better-login]: Failed to initialize BetterLogin. Plugin will be inactive.
+java.lang.RuntimeException: Failed to initialize SQLite storage
+	at com.betterlogin.velocity.storage.SQLiteStorage.init(SQLiteStorage.java:61)
+	at com.betterlogin.velocity.BetterLoginPlugin.onProxyInitialize(BetterLoginPlugin.java:54)
+	at com.betterlogin.velocity.Lmbda$5.execute(Unknown Source)
+	at com.velocitypowered.proxy.event.UntargetedEventHandler$VoidHandler.lambda$buildHandler$0(UntargetedEventHandler.java:56)
+	at com.velocitypowered.proxy.event.VelocityEventManager.fire(VelocityEventManager.java:677)
+	at com.velocitypowered.proxy.event.VelocityEventManager.lambda$fire$5(VelocityEventManager.java:542)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+Caused by: java.sql.SQLException: No suitable driver found for jdbc:sqlite:plugins/better-login/auth.db
+	at java.sql/java.sql.DriverManager.getConnection(DriverManager.java:708)
+	at java.sql/java.sql.DriverManager.getConnection(DriverManager.java:253)
+	at com.betterlogin.velocity.storage.SQLiteStorage.init(SQLiteStorage.java:53)
+	... 8 more
+[06:58:56] [AuthMeVelocity - Task Executor #0/WARN] [com.velocitypowered.proxy.network.ConnectionManager]: The server channel initializer has been replaced by java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+[06:58:56] [AuthMeVelocity - Task Executor #0/WARN] [com.velocitypowered.proxy.network.ConnectionManager]: The backend channel initializer has been replaced by java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+[06:58:57] [AuthMeVelocity - Task Executor #0/INFO] [geyser]: Loading extensions...
+[06:58:57] [AuthMeVelocity - Task Executor #0/INFO] [geyser]: Loaded 0 extension(s)
+[06:58:57] [AuthMeVelocity - Task Executor #0/ERROR] [com.velocitypowered.proxy.event.VelocityEventManager]: Couldn't pass ProxyInitializeEvent to limboapi 1.1.0
+java.lang.ExceptionInInitializerError
+	at net.elytrium.limboapi.LimboAPI.onProxyInitialization(LimboAPI.java:203)
+	at net.elytrium.limboapi.Lmbda$13.execute(Unknown Source)
+	at com.velocitypowered.proxy.event.UntargetedEventHandler$VoidHandler.lambda$buildHandler$0(UntargetedEventHandler.java:56)
+	at com.velocitypowered.proxy.event.VelocityEventManager.fire(VelocityEventManager.java:677)
+	at com.velocitypowered.proxy.event.VelocityEventManager.lambda$fire$5(VelocityEventManager.java:542)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+Caused by: net.elytrium.commons.utils.reflection.ReflectionException: An unexpected internal error was caught during the reflection operations.
+	at net.elytrium.limboapi.thirdparty.fastprepare.PreparedPacketFactory.<clinit>(PreparedPacketFactory.java:97)
+	... 8 more
+Caused by: java.lang.NoSuchMethodException: no such method: com.velocitypowered.proxy.protocol.netty.MinecraftVarintLengthEncoder.encode(ChannelHandlerContext,ByteBuf,ByteBuf)void/invokeVirtual
+	at java.base/java.lang.invoke.MemberName.makeAccessException(MemberName.java:915)
+	at java.base/java.lang.invoke.MemberName$Factory.resolveOrFail(MemberName.java:994)
+	at java.base/java.lang.invoke.MethodHandles$Lookup.resolveOrFail(MethodHandles.java:3750)
+	at java.base/java.lang.invoke.MethodHandles$Lookup.findVirtual(MethodHandles.java:2767)
+	at net.elytrium.limboapi.thirdparty.fastprepare.PreparedPacketFactory.<clinit>(PreparedPacketFactory.java:80)
+	... 8 more
+Caused by: java.lang.NoSuchMethodError: 'void com.velocitypowered.proxy.protocol.netty.MinecraftVarintLengthEncoder.encode(io.netty.channel.ChannelHandlerContext, io.netty.buffer.ByteBuf, io.netty.buffer.ByteBuf)'
+	at java.base/java.lang.invoke.MethodHandleNatives.resolve(Native Method)
+	at java.base/java.lang.invoke.MemberName$Factory.resolve(MemberName.java:962)
+	at java.base/java.lang.invoke.MemberName$Factory.resolveOrFail(MemberName.java:991)
+	... 11 more
+[06:58:57] [AuthMeVelocity - Task Executor #0/INFO] [packetevents]: Injecting packetevents...
+[06:58:58] [AuthMeVelocity - Task Executor #0/WARN] [com.velocitypowered.proxy.network.ConnectionManager]: The server channel initializer has been replaced by java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+[06:58:58] [packetevents-update-check-thread/INFO] [com.velocitypowered.proxy.console.VelocityConsole]: Checking for updates, please wait...
+[06:58:58] [packetevents-update-check-thread/INFO] [com.velocitypowered.proxy.console.VelocityConsole]: You are running the latest release of PacketEvents. Your build: (§a2.12.1§f)
+[06:58:58] [AuthMeVelocity - Task Executor #0/INFO] [packetevents]: Plugin started
+[06:58:58] [AuthMeVelocity - Task Executor #0/INFO] [skinsrestorer]: Floodgate skin listener registered
+[06:58:58] [AuthMeVelocity - Task Executor #0/INFO] [Limbo Handler]: Loading Limbo Handler!
+[06:58:58] [AuthMeVelocity - Task Executor #0/INFO] [Limbo Handler]: Queue Enabled: true
+[06:58:58] [SkinsRestorer - Task Executor #0/INFO] [skinsrestorer]: ----------------------------------------------
+[06:58:58] [SkinsRestorer - Task Executor #0/INFO] [skinsrestorer]:     +==================+
+[06:58:58] [SkinsRestorer - Task Executor #0/INFO] [skinsrestorer]:     |   SkinsRestorer  |
+[06:58:58] [SkinsRestorer - Task Executor #0/INFO] [skinsrestorer]:     |------------------|
+[06:58:58] [SkinsRestorer - Task Executor #0/INFO] [skinsrestorer]:     +==================+
+[06:58:58] [SkinsRestorer - Task Executor #0/INFO] [skinsrestorer]: ----------------------------------------------
+[06:58:58] [SkinsRestorer - Task Executor #0/INFO] [skinsrestorer]:     Version: 15.11.0
+[06:58:58] [SkinsRestorer - Task Executor #0/INFO] [skinsrestorer]:     Commit: 52f31ab
+[06:58:58] [SkinsRestorer - Task Executor #0/INFO] [skinsrestorer]:     A new version (15.12.0) is available!
+[06:58:58] [SkinsRestorer - Task Executor #0/INFO] [skinsrestorer]:     https://modrinth.com/plugin/skinsrestorer/version/15.12.0
+[06:58:58] [SkinsRestorer - Task Executor #0/INFO] [skinsrestorer]: ----------------------------------------------
+[06:58:58] [SkinsRestorer - Task Executor #0/INFO] [skinsrestorer]: Do you have issues? Read our troubleshooting guide: https://skinsrestorer.net/docs/troubleshooting
+[06:58:58] [SkinsRestorer - Task Executor #0/INFO] [skinsrestorer]: Want to support SkinsRestorer? Consider donating: https://skinsrestorer.net/donate
+[06:58:58] [AuthMeVelocity - Task Executor #0/ERROR] [com.velocitypowered.proxy.event.VelocityEventManager]: Couldn't pass ProxyInitializeEvent to limboapi 1.1.0
+java.lang.ClassCastException: class com.velocitypowered.proxy.event.VelocityEventManager cannot be cast to class net.elytrium.limboapi.injection.event.EventManagerHook (com.velocitypowered.proxy.event.VelocityEventManager is in unnamed module of loader 'app'; net.elytrium.limboapi.injection.event.EventManagerHook is in unnamed module of loader com.velocitypowered.proxy.plugin.PluginClassLoader @5b78fdb1)
+	at net.elytrium.limboapi.LimboAPI.postProxyInitialization(LimboAPI.java:244)
+	at net.elytrium.limboapi.Lmbda$12.execute(Unknown Source)
+	at com.velocitypowered.proxy.event.UntargetedEventHandler$VoidHandler.lambda$buildHandler$0(UntargetedEventHandler.java:56)
+	at com.velocitypowered.proxy.event.VelocityEventManager.fire(VelocityEventManager.java:677)
+	at com.velocitypowered.proxy.event.VelocityEventManager.lambda$fire$5(VelocityEventManager.java:542)
+	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+[06:58:58] [pool-5-thread-1/WARN] [floodgate]: 
+**********************************
+* The prefix you entered in your Floodgate config (_) could lead to username conflicts!
+* Should a Java player join with the username _Notch, and a Bedrock player join as Notch (who will be given the name _Notch), unwanted results will happen!
+* We strongly recommend using . as the prefix, but other alternatives that will not conflict include: +, - and *
+**********************************
+[06:58:59] [Via-Mappingloader-1/INFO] [viaversion]: Loading block connection mappings ...
+[06:58:59] [AuthMeVelocity - Task Executor #0/INFO] [viaversion]: Replacing channel initializers; you can safely ignore the following two warnings.
+[06:58:59] [AuthMeVelocity - Task Executor #0/WARN] [com.velocitypowered.proxy.network.ConnectionManager]: The server channel initializer has been replaced by java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+[06:58:59] [AuthMeVelocity - Task Executor #0/WARN] [com.velocitypowered.proxy.network.ConnectionManager]: The backend channel initializer has been replaced by java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+[06:58:59] [AuthMeVelocity - Task Executor #0/INFO] [viabackwards]: Loading translations...
+[06:58:59] [AuthMeVelocity - Task Executor #0/INFO] [viabackwards]: Registering protocols...
+[06:58:59] [AuthMeVelocity - Task Executor #0/INFO] [viarewind]: Registering protocols...
+[06:58:59] [AuthMeVelocity - Task Executor #0/INFO] [viaversion]: ViaVersion detected lowest supported version by the proxy: 1.13 (393)
+[06:58:59] [AuthMeVelocity - Task Executor #0/INFO] [viaversion]: Highest supported version by the proxy: 1.21.11 (774)
+[06:58:59] [ViaVersion - Task Executor #2/INFO] [viaversion]: Finished mapping loading, shutting down loader executor.
+[06:58:59] [Netty epoll Boss #0/INFO] [com.velocitypowered.proxy.network.ConnectionManager]: Listening on /[0:0:0:0:0:0:0:0]:25565
+[06:58:59] [ViaVersion - Task Executor #0/WARN] [viaversion]: There is a newer plugin version available: 5.9.0, you're on: 5.8.1
+[06:58:59] [main/INFO] [com.velocitypowered.proxy.Velocity]: Done (4.13s)!
+[06:58:59] [Thread-2/INFO] [com.velocitypowered.proxy.VelocityServer]: Shutting down the proxy...
+[06:58:59] [Thread-2/INFO] [com.velocitypowered.proxy.network.ConnectionManager]: Closing endpoint /0.0.0.0:25565
+[06:58:59] [BetterLogin - Task Executor #0/INFO] [better-login]: BetterLogin shut down.
+[06:58:59] [BetterLogin - Task Executor #0/INFO] [geyser]: Geyser shutdown successfully.
+[06:58:59] [BetterLogin - Task Executor #0/INFO] [com.velocitypowered.proxy.console.VelocityConsole]: Failed to uninject from initializer
+[06:58:59] [BetterLogin - Task Executor #0/ERROR] [com.velocitypowered.proxy.console.VelocityConsole]: java.lang.IllegalStateException: Failed to uninject from frontend pipeline: can't unwrap foreign channel initializer
+[06:58:59] [BetterLogin - Task Executor #0/ERROR] [com.velocitypowered.proxy.console.VelocityConsole]: 	at io.github.retrooper.packetevents.injector.VelocityPipelineInjector.uninject(VelocityPipelineInjector.java:89)
+[06:58:59] [BetterLogin - Task Executor #0/ERROR] [com.velocitypowered.proxy.console.VelocityConsole]: 	at io.github.retrooper.packetevents.velocity.factory.VelocityPacketEventsBuilder$1.terminate(VelocityPacketEventsBuilder.java:241)
+[06:58:59] [BetterLogin - Task Executor #0/ERROR] [com.velocitypowered.proxy.console.VelocityConsole]: 	at io.github.retrooper.packetevents.PacketEventsPlugin.onProxyShutdown(PacketEventsPlugin.java:106)
+[06:58:59] [BetterLogin - Task Executor #0/ERROR] [com.velocitypowered.proxy.console.VelocityConsole]: 	at io.github.retrooper.packetevents.Lmbda$15.execute(Unknown Source)
+[06:58:59] [BetterLogin - Task Executor #0/ERROR] [com.velocitypowered.proxy.console.VelocityConsole]: 	at com.velocitypowered.proxy.event.UntargetedEventHandler$VoidHandler.lambda$buildHandler$0(UntargetedEventHandler.java:56)
+[06:58:59] [BetterLogin - Task Executor #0/ERROR] [com.velocitypowered.proxy.console.VelocityConsole]: 	at com.velocitypowered.proxy.event.VelocityEventManager.fire(VelocityEventManager.java:677)
+[06:58:59] [BetterLogin - Task Executor #0/ERROR] [com.velocitypowered.proxy.console.VelocityConsole]: 	at com.velocitypowered.proxy.event.VelocityEventManager.lambda$fire$5(VelocityEventManager.java:542)
+[06:58:59] [BetterLogin - Task Executor #0/ERROR] [com.velocitypowered.proxy.console.VelocityConsole]: 	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+[06:58:59] [BetterLogin - Task Executor #0/ERROR] [com.velocitypowered.proxy.console.VelocityConsole]: 	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+[06:58:59] [BetterLogin - Task Executor #0/ERROR] [com.velocitypowered.proxy.console.VelocityConsole]: 	at java.base/java.lang.Thread.run(Thread.java:1583)
+[06:58:59] [Geyser-Velocity - Task Executor #0/INFO] [geyser]: ******************************************
+[06:58:59] [Geyser-Velocity - Task Executor #0/INFO] [geyser]: 
+[06:58:59] [Geyser-Velocity - Task Executor #0/INFO] [geyser]: Loading Geyser version 2.9.5-b1106 (git-master-8960ced)
+[06:58:59] [Geyser-Velocity - Task Executor #0/INFO] [geyser]: 
+[06:58:59] [Geyser-Velocity - Task Executor #0/INFO] [geyser]: ******************************************
+[06:59:01] [GeyserServer-3-1/INFO] [geyser]: Started Geyser on UDP port 19132
+[06:59:01] [Geyser-Velocity - Task Executor #0/INFO] [geyser]: Done (1.719s)! Run /geyser help for help!
