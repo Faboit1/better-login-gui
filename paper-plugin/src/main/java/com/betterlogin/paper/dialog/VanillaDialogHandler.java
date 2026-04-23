@@ -167,7 +167,7 @@ public class VanillaDialogHandler implements DialogHandler {
                         .build())
                 .type(DialogType.confirmation(
                         ActionButton.builder(Component.text(submitText, NamedTextColor.GREEN))
-                                .action(DialogAction.customClick(callback, ClickCallback.Options.defaults()))
+                                .action(DialogAction.customClick(callback, ClickCallback.Options.builder().build()))
                                 .build(),
                         ActionButton.builder(Component.text("Cancel", NamedTextColor.RED))
                                 .build()
