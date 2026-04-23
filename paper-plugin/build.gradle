@@ -1,0 +1,25 @@
+plugins {
+    id 'com.gradleup.shadow' version '8.3.5'
+}
+
+dependencies {
+    compileOnly 'io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT'
+
+    // PacketEvents for sending vanilla dialog packets and sign-editor packets
+    implementation 'com.github.retrooper:packetevents-spigot:2.7.0'
+
+    implementation 'org.spongepowered:configurate-yaml:4.1.2'
+}
+
+shadowJar {
+    archiveClassifier.set('')
+    relocate 'io.github.retrooper.packetevents', 'com.betterlogin.libs.packetevents'
+    relocate 'com.github.retrooper.packetevents', 'com.betterlogin.libs.packetevents.api'
+    relocate 'org.spongepowered.configurate', 'com.betterlogin.libs.configurate'
+    relocate 'io.leangen.geantyref', 'com.betterlogin.libs.geantyref'
+    relocate 'org.yaml.snakeyaml', 'com.betterlogin.libs.snakeyaml'
+}
+
+assemble.dependsOn shadowJar
+
+compileJava.options.encoding = 'UTF-8'

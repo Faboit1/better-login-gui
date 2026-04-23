@@ -1,0 +1,3 @@
+rootProject.name = 'better-login-gui'
+include 'velocity-plugin'
+include 'paper-plugin'

@@ -1,0 +1,8 @@
+# BetterLogin Bridge – Paper Plugin Config
+
+messages:
+  # Shown when a premium player (or session player) auto-logs in
+  welcome: "&aWelcome, {player}!"
+  # Shown inside the sign editor prompt (action bar)
+  login-prompt: "&eLine 1 of the sign: enter your password, then click Done."
+  register-prompt: "&eLine 1 of the sign: choose a password, then click Done."

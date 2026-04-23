@@ -1,0 +1,29 @@
+plugins {
+    id 'com.gradleup.shadow' version '8.3.5'
+}
+
+dependencies {
+    compileOnly 'com.velocitypowered:velocity-api:3.3.0-SNAPSHOT'
+    annotationProcessor 'com.velocitypowered:velocity-api:3.3.0-SNAPSHOT'
+
+    // Bundled dependencies (shaded into the plugin JAR)
+    implementation 'org.xerial:sqlite-jdbc:3.47.0.0'
+    implementation 'org.mindrot:jbcrypt:0.4'
+    implementation 'org.spongepowered:configurate-yaml:4.1.2'
+}
+
+shadowJar {
+    archiveClassifier.set('')
+    // Relocate shaded dependencies to avoid classpath conflicts
+    relocate 'org.sqlite', 'com.betterlogin.libs.sqlite'
+    relocate 'org.mindrot.jbcrypt', 'com.betterlogin.libs.bcrypt'
+    relocate 'org.spongepowered.configurate', 'com.betterlogin.libs.configurate'
+    relocate 'io.leangen.geantyref', 'com.betterlogin.libs.geantyref'
+    relocate 'com.typesafe.config', 'com.betterlogin.libs.typesafe'
+    relocate 'org.yaml.snakeyaml', 'com.betterlogin.libs.snakeyaml'
+    relocate 'io.github.classgraph', 'com.betterlogin.libs.classgraph'
+}
+
+assemble.dependsOn shadowJar
+
+compileJava.options.encoding = 'UTF-8'
