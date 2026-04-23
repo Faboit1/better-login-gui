@@ -65,9 +65,9 @@ public class BridgeMessageListener implements PluginMessageListener {
         if (parts.length < 3) return;
         boolean isNewPlayer = Boolean.parseBoolean(parts[2]);
 
-        pendingAuth.add(player.getUniqueId());
-
-        // Show dialog on main thread
+        // pendingAuth is managed by VanillaDialogHandler:
+        //  - 1.21.6+ clients: added when the dialog is shown, removed on response or quit.
+        //  - Older clients:   NOT added – AuthMe + AuthMeVelocity handle those players.
         plugin.getServer().getScheduler().runTask(plugin, () -> {
             if (isNewPlayer) {
                 dialogHandler.showRegisterDialog(player);

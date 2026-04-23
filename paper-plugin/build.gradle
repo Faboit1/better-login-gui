@@ -2,19 +2,25 @@ plugins {
     id 'com.gradleup.shadow' version '8.3.5'
 }
 
-dependencies {
-    compileOnly 'io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT'
+repositories {
+    // ViaVersion API (for soft-depend client protocol version detection)
+    maven { url = 'https://repo.viaversion.com' }
+}
 
-    // PacketEvents for sending vanilla dialog packets and sign-editor packets
-    implementation 'com.github.retrooper:packetevents-spigot:2.7.0'
+dependencies {
+    // Target the server version the admin is running; dialogs require Paper 1.21.6+.
+    // Bump this when you upgrade the server – the code has no version-specific NMS calls.
+    compileOnly 'io.papermc.paper:paper-api:1.21.10-R0.1-SNAPSHOT'
+
+    // Soft-depend: used only to detect client protocol version so we can fall back
+    // to the /login chat command for clients older than 1.21.6 (no dialog support).
+    compileOnly 'com.viaversion:viaversion-api:4.9.2'
 
     implementation 'org.spongepowered:configurate-yaml:4.1.2'
 }
 
 shadowJar {
     archiveClassifier.set('')
-    relocate 'io.github.retrooper.packetevents', 'com.betterlogin.libs.packetevents'
-    relocate 'com.github.retrooper.packetevents', 'com.betterlogin.libs.packetevents.api'
     relocate 'org.spongepowered.configurate', 'com.betterlogin.libs.configurate'
     relocate 'io.leangen.geantyref', 'com.betterlogin.libs.geantyref'
     relocate 'org.yaml.snakeyaml', 'com.betterlogin.libs.snakeyaml'

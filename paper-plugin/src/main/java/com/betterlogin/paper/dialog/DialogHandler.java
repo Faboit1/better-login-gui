@@ -5,9 +5,9 @@ import org.bukkit.entity.Player;
 /**
  * Abstraction over the dialog/input mechanism used to collect a password from the player.
  *
- * <p>The default implementation uses the vanilla sign-editor GUI (see {@link SignEditorDialogHandler}).
- * Once the Paper API stabilises support for the MC 1.21.5 custom dialog screen, a
- * {@code VanillaDialogHandler} can be swapped in without touching any other code.
+ * <p>The default implementation ({@link VanillaDialogHandler}) sends a native Minecraft
+ * dialog screen (requires client 1.21.6+) and falls back to a plain-text chat prompt for
+ * older clients that do not support the dialog protocol.</p>
  */
 public interface DialogHandler {
 

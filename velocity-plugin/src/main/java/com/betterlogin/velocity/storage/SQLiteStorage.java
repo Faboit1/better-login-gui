@@ -49,6 +49,9 @@ public class SQLiteStorage implements AuthStorage {
     public void init() {
         try {
             Files.createDirectories(dataDirectory);
+            // The SQLite JDBC driver is shaded and relocated; DriverManager's service-loader
+            // won't find it automatically after relocation, so we load it explicitly.
+            Class.forName("com.betterlogin.libs.sqlite.JDBC");
             String url = "jdbc:sqlite:" + dataDirectory.resolve("auth.db");
             connection = DriverManager.getConnection(url);
             // Enable WAL for better concurrent read performance

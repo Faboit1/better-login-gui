@@ -1,14 +1,12 @@
 package com.betterlogin.paper;
 
 import com.betterlogin.paper.dialog.DialogHandler;
-import com.betterlogin.paper.dialog.SignEditorDialogHandler;
+import com.betterlogin.paper.dialog.VanillaDialogHandler;
 import com.betterlogin.paper.listener.AuthPlayerListener;
 import com.betterlogin.paper.listener.BridgeMessageListener;
-import com.github.retrooper.packetevents.PacketEvents;
-import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.plugin.messaging.PluginMessageListener;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -19,35 +17,33 @@ import java.util.UUID;
  * <p>Responsibilities:
  * <ul>
  *   <li>Receive plugin-channel messages from the Velocity proxy</li>
- *   <li>Show the vanilla dialog (sign-editor GUI) for password entry</li>
- *   <li>Freeze unauthenticated players until auth completes</li>
+ *   <li>Show the native Minecraft dialog (1.21.6+ clients) or a chat-command prompt
+ *       (older clients) for password entry</li>
+ *   <li>Freeze unauthenticated players (dialog-path only) until auth completes</li>
  *   <li>Execute post-auth commands on the Paper server</li>
  * </ul>
+ *
+ * <p><strong>Note:</strong> PacketEvents is intentionally NOT initialised here.
+ * The standalone {@code packetevents} plugin (used by GrimAC and others) handles its
+ * own lifecycle.  Bundling a second copy caused double-injection into the Netty
+ * pipeline and kicked every player with "PacketEvents 2.0 failed to inject".</p>
  */
 public class BetterLoginBridge extends JavaPlugin {
 
     public static final String CHANNEL = "betterlogin:bridge";
 
-    /** UUIDs of players who are still in the authentication flow. */
-    private final Set<UUID> pendingAuth = new HashSet<>();
+    /** UUIDs of players currently inside the dialog authentication flow. */
+    private final Set<UUID> pendingAuth = Collections.synchronizedSet(new HashSet<>());
 
     private DialogHandler dialogHandler;
-    private BridgeMessageListener bridgeListener;
-
-    @Override
-    public void onLoad() {
-        PacketEvents.setAPI(SpigotPacketEventsBuilder.build(this));
-        PacketEvents.getAPI().load();
-    }
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
 
-        PacketEvents.getAPI().init();
-
-        dialogHandler = new SignEditorDialogHandler(this, pendingAuth);
-        bridgeListener = new BridgeMessageListener(this, dialogHandler, pendingAuth);
+        dialogHandler = new VanillaDialogHandler(this, pendingAuth);
+        BridgeMessageListener bridgeListener =
+                new BridgeMessageListener(this, dialogHandler, pendingAuth);
 
         // Register plugin-message channel (incoming from Velocity via player connection)
         getServer().getMessenger().registerIncomingPluginChannel(this, CHANNEL, bridgeListener);
@@ -55,14 +51,13 @@ public class BetterLoginBridge extends JavaPlugin {
 
         // Auth player listener (freeze movement, block commands, etc.)
         getServer().getPluginManager().registerEvents(
-            new AuthPlayerListener(this, dialogHandler, pendingAuth), this);
+                new AuthPlayerListener(this, dialogHandler, pendingAuth), this);
 
         getLogger().info("BetterLogin bridge enabled.");
     }
 
     @Override
     public void onDisable() {
-        PacketEvents.getAPI().terminate();
         getServer().getMessenger().unregisterIncomingPluginChannel(this, CHANNEL);
         getServer().getMessenger().unregisterOutgoingPluginChannel(this, CHANNEL);
     }
@@ -70,3 +65,4 @@ public class BetterLoginBridge extends JavaPlugin {
     public Set<UUID> getPendingAuth() { return pendingAuth; }
     public DialogHandler getDialogHandler() { return dialogHandler; }
 }
+
