@@ -2,20 +2,22 @@ package com.betterlogin.paper.dialog;
 
 import com.betterlogin.paper.BetterLoginBridge;
 import io.papermc.paper.dialog.Dialog;
-import io.papermc.paper.dialog.TextInput;
-import io.papermc.paper.event.player.PlayerDialogRespondEvent;
+import io.papermc.paper.registry.data.dialog.ActionButton;
+import io.papermc.paper.registry.data.dialog.DialogBase;
+import io.papermc.paper.registry.data.dialog.action.DialogAction;
+import io.papermc.paper.registry.data.dialog.action.DialogActionCallback;
+import io.papermc.paper.registry.data.dialog.body.DialogBody;
+import io.papermc.paper.registry.data.dialog.input.DialogInput;
+import io.papermc.paper.registry.data.dialog.type.DialogType;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickCallback;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.EventPriority;
-import org.bukkit.event.Listener;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Map;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Dialog handler using Minecraft 1.21.6+ native dialog screens.
@@ -26,25 +28,29 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li>{@link #supportsDialogs} checks the player's client protocol version via ViaVersion
  *       (soft-depend).  Clients at protocol {@value #DIALOG_MIN_PROTOCOL} or above get the
  *       native Minecraft dialog; older clients receive a plain-text prompt to use
- *       {@code /login} (handled by the already-installed AuthMe plugin).</li>
- *   <li>When a 1.21.6+ player submits the dialog, Paper fires
- *       {@link PlayerDialogRespondEvent} which is caught here and forwarded to Velocity.</li>
+ *       {@code /login} or {@code /register} (handled by the already-installed AuthMe plugin).</li>
+ *   <li>When a 1.21.6+ player clicks the submit button, the {@link io.papermc.paper.registry.data.dialog.action.DialogActionCallback}
+ *       registered on that button fires and forwards the response to Velocity.</li>
  * </ol>
  *
- * <p><strong>Requires:</strong> Paper 1.21.6+ (compiled against 1.21.10-R0.1-SNAPSHOT or
- * newer).  For older clients the fallback path has no extra requirements.</p>
+ * <h2>API reference</h2>
+ * <ul>
+ *   <li>Dialog builder: {@link Dialog#create}</li>
+ *   <li>Text input: {@link DialogInput#text(String, Component)}</li>
+ *   <li>Button callback: {@link DialogAction#customClick(io.papermc.paper.registry.data.dialog.action.DialogActionCallback, ClickCallback.Options)}</li>
+ *   <li>Show dialog: {@code player.showDialog(dialog)} (from {@link net.kyori.adventure.audience.Audience})</li>
+ *   <li>Read response: {@link io.papermc.paper.dialog.DialogResponseView#getText(String)}</li>
+ * </ul>
  *
- * <p><strong>Protocol version note:</strong> {@link #DIALOG_MIN_PROTOCOL} is set to the
- * protocol number for Minecraft 1.21.6.  Verify it against
- * <a href="https://wiki.vg/Protocol_version_number">wiki.vg</a> and update the constant if
- * Mojang ever reuses a protocol version across releases.</p>
+ * <p><strong>Protocol version note:</strong> {@link #DIALOG_MIN_PROTOCOL} is the protocol
+ * number for Minecraft 1.21.6.  Verify against
+ * <a href="https://wiki.vg/Protocol_version_number">wiki.vg</a> if Mojang renumbers.</p>
  */
-public class VanillaDialogHandler implements DialogHandler, Listener {
+public class VanillaDialogHandler implements DialogHandler {
 
     /**
      * Minimum client protocol version that supports the 1.21.6 native dialog screen.
      * 1.21.4 = 769, 1.21.5 = 770, 1.21.6 = 771.
-     * Check <a href="https://wiki.vg/Protocol_version_number">wiki.vg</a> to verify.
      */
     static final int DIALOG_MIN_PROTOCOL = 771;
 
@@ -53,17 +59,9 @@ public class VanillaDialogHandler implements DialogHandler, Listener {
     private final BetterLoginBridge plugin;
     private final Set<UUID> pendingAuth;
 
-    /**
-     * Players whose dialog response we are currently waiting for, mapped to whether they
-     * are registering ({@code true}) or logging in ({@code false}).
-     */
-    private final Map<UUID, Boolean> awaitingDialog = new ConcurrentHashMap<>();
-
     public VanillaDialogHandler(BetterLoginBridge plugin, Set<UUID> pendingAuth) {
         this.plugin = plugin;
         this.pendingAuth = pendingAuth;
-        // Self-register as a Bukkit event listener so we catch PlayerDialogRespondEvent.
-        plugin.getServer().getPluginManager().registerEvents(this, plugin);
     }
 
     // ------------------------------------------------------------------
@@ -97,21 +95,6 @@ public class VanillaDialogHandler implements DialogHandler, Listener {
     }
 
     // ------------------------------------------------------------------
-    // Paper event listener – dialog response
-    // ------------------------------------------------------------------
-
-    @EventHandler(priority = EventPriority.NORMAL)
-    public void onDialogRespond(PlayerDialogRespondEvent event) {
-        Player player = event.getPlayer();
-        Boolean isRegister = awaitingDialog.remove(player.getUniqueId());
-        if (isRegister == null) return; // Not our dialog
-
-        // Retrieve the password the player typed in the "password" text-input field.
-        String password = event.getInput("password").orElse("");
-        handleResponse(player, password, isRegister);
-    }
-
-    // ------------------------------------------------------------------
     // Private helpers
     // ------------------------------------------------------------------
 
@@ -121,8 +104,8 @@ public class VanillaDialogHandler implements DialogHandler, Listener {
      *
      * <p>If ViaVersion is present, the actual client protocol version is compared
      * against {@link #DIALOG_MIN_PROTOCOL}.  Without ViaVersion (or if the look-up
-     * fails), we assume the client is running the same version as the server –
-     * 1.21.10 supports dialogs, so the result is {@code true}.</p>
+     * fails), we assume the client is running the same version as the server (1.21.10
+     * supports dialogs, so the result is {@code true}).</p>
      */
     private boolean supportsDialogs(Player player) {
         if (plugin.getServer().getPluginManager().isPluginEnabled("ViaVersion")) {
@@ -138,58 +121,77 @@ public class VanillaDialogHandler implements DialogHandler, Listener {
     }
 
     /**
-     * Schedules opening of a native Paper dialog on the main thread.
+     * Builds and shows a native Paper dialog to the player.
      *
-     * <p>If the API throws at runtime (e.g. on a server version that doesn't yet
-     * expose the dialog API), the exception is caught, the player is removed from
-     * {@code pendingAuth}, and the plain-text fallback is shown instead.</p>
+     * <p>The submit button registers a {@link io.papermc.paper.registry.data.dialog.action.DialogActionCallback}
+     * closure.  When the player clicks it, the password field value is read from
+     * {@link io.papermc.paper.dialog.DialogResponseView#getText(String)} and forwarded to Velocity.</p>
+     *
+     * <p>If showing the dialog throws at runtime (e.g. missing API on this Paper build),
+     * the player is removed from {@code pendingAuth} and the plain-text fallback is shown.</p>
      */
     private void openNativeDialog(Player player, boolean isRegister) {
-        awaitingDialog.put(player.getUniqueId(), isRegister);
+        UUID uuid = player.getUniqueId();
+
+        String titleText  = isRegister ? "Create Account" : "Login";
+        String bodyText   = isRegister
+                ? "Choose a password for your new account."
+                : "Enter your password to continue.";
+        String submitText = isRegister ? "Register" : "Login";
+
+        // Build the callback closure – invoked when the player clicks the submit button.
+        // Captures uuid and isRegister so no state map is needed.
+        DialogActionCallback callback = (response, audience) -> {
+                    String pw = response.getText("password");
+                    if (pw == null) pw = "";
+                    final String password = pw;
+                    // The callback may fire off the main thread – schedule to be safe.
+                    plugin.getServer().getScheduler().runTask(plugin, () -> {
+                        Player p = plugin.getServer().getPlayer(uuid);
+                        if (p != null && pendingAuth.contains(uuid)) {
+                            handleResponse(p, password, isRegister);
+                        }
+                    });
+                };
+
+        Dialog dialog = Dialog.create(factory -> factory.empty()
+                .base(DialogBase.builder(Component.text(titleText, NamedTextColor.GOLD))
+                        .body(List.of(DialogBody.plainMessage(
+                                Component.text(bodyText, NamedTextColor.GRAY))))
+                        .inputs(List.of(
+                                DialogInput.text("password", Component.text("Password"))
+                                        .maxLength(50)
+                                        .build()))
+                        .canCloseWithEscape(false)
+                        .afterAction(DialogBase.DialogAfterAction.WAIT_FOR_RESPONSE)
+                        .build())
+                .type(DialogType.confirmation(
+                        ActionButton.builder(Component.text(submitText, NamedTextColor.GREEN))
+                                .action(DialogAction.customClick(callback, ClickCallback.Options.defaults()))
+                                .build(),
+                        ActionButton.builder(Component.text("Cancel", NamedTextColor.RED))
+                                .build()
+                )));
+
         plugin.getServer().getScheduler().runTask(plugin, () -> {
             try {
-                player.openDialog(buildDialog(isRegister));
+                player.showDialog(dialog);
             } catch (Exception e) {
                 plugin.getLogger().warning(
                         "Native dialog unavailable for " + player.getName()
                         + " (" + e.getMessage() + "). Showing text fallback.");
-                awaitingDialog.remove(player.getUniqueId());
-                pendingAuth.remove(player.getUniqueId());
+                pendingAuth.remove(uuid);
                 sendFallbackMessage(player, isRegister);
             }
         });
     }
 
     /**
-     * Constructs the login or registration native dialog.
-     *
-     * <p>The "password" text input ID must match the key used in
-     * {@link #onDialogRespond} when reading {@code event.getInput("password")}.</p>
-     */
-    private Dialog buildDialog(boolean isRegister) {
-        String titleText = isRegister ? "Create Account" : "Login";
-        String bodyText  = isRegister
-                ? "Choose a password for your new account."
-                : "Enter your password to continue.";
-        String buttonText = isRegister ? "Register" : "Login";
-
-        return Dialog.custom()
-                .title(Component.text(titleText, NamedTextColor.GOLD))
-                .body(Component.text(bodyText, NamedTextColor.GRAY))
-                .input(TextInput.text("password")
-                        .label(Component.text("Password"))
-                        .maxLength(50)
-                        .build())
-                .submitButton(Component.text(buttonText, NamedTextColor.GREEN))
-                .build();
-    }
-
-    /**
      * Shown to players whose client is older than 1.21.6 (no native dialog support).
      *
-     * <p>AuthMe (already installed) handles the {@code /login} and {@code /register}
-     * commands for these players; BetterLogin does not add them to {@code pendingAuth}
-     * so AuthMe's own restrictions apply without interference.</p>
+     * <p>AuthMe (already installed) handles {@code /login} and {@code /register} for
+     * these players.  BetterLogin does not add them to {@code pendingAuth} so AuthMe's
+     * own restrictions apply without interference.</p>
      */
     private void sendFallbackMessage(Player player, boolean isRegister) {
         String command = isRegister
@@ -221,3 +223,4 @@ public class VanillaDialogHandler implements DialogHandler, Listener {
                 payload.getBytes(StandardCharsets.UTF_8));
     }
 }
+
