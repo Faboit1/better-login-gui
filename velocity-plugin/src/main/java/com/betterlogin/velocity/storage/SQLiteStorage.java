@@ -58,9 +58,15 @@ public class SQLiteStorage implements AuthStorage {
             // cannot see the relocated driver. We must load and invoke the driver directly
             // instead of going through DriverManager.getConnection(), which would fail with
             // "No suitable driver found" even though Class.forName() succeeds.
-            java.sql.Driver drv = (java.sql.Driver) Class.forName("com.betterlogin.libs.sqlite.JDBC")
-                    .getDeclaredConstructor()
-                    .newInstance();
+            java.sql.Driver drv;
+            try {
+                drv = (java.sql.Driver) Class.forName("com.betterlogin.libs.sqlite.JDBC")
+                        .getDeclaredConstructor()
+                        .newInstance();
+            } catch (ReflectiveOperationException e) {
+                throw new RuntimeException("Failed to instantiate shaded SQLite JDBC driver. "
+                        + "Ensure the plugin JAR was built with the shadowJar task.", e);
+            }
             String url = "jdbc:sqlite:" + dataDirectory.resolve("auth.db").toAbsolutePath();
             connection = drv.connect(url, new java.util.Properties());
             // Enable WAL for better concurrent read performance

@@ -227,7 +227,7 @@ you can trace exactly where the flow breaks.
 | Command | Description |
 |---------|-------------|
 | `/betterlogin status` | Show plugin state and each online player's auth state |
-| `/betterlogin debug [on\|off]` | Toggle debug logging without restarting |
+| `/betterlogin debug [on&#124;off]` | Toggle debug logging without restarting |
 | `/betterlogin reload` | Reload `config.yml` |
 
 Alias: `/bl`  
@@ -237,7 +237,7 @@ Permission: `betterlogin.admin` (granted to operators by default)
 | Command | Description |
 |---------|-------------|
 | `/betterlogintest status` | Show pending-auth players and channel info |
-| `/betterlogintest debug [on\|off]` | Toggle debug logging without restarting |
+| `/betterlogintest debug [on&#124;off]` | Toggle debug logging without restarting |
 | `/betterlogintest resend <player>` | Re-send the auth dialog to a stuck player |
 
 Alias: `/blt`  
