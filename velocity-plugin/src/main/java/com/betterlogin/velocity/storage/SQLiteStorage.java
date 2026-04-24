@@ -4,7 +4,11 @@ import org.slf4j.Logger;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -49,11 +53,16 @@ public class SQLiteStorage implements AuthStorage {
     public void init() {
         try {
             Files.createDirectories(dataDirectory);
-            // The SQLite JDBC driver is shaded and relocated; DriverManager's service-loader
-            // won't find it automatically after relocation, so we load it explicitly.
-            Class.forName("com.betterlogin.libs.sqlite.JDBC");
-            String url = "jdbc:sqlite:" + dataDirectory.resolve("auth.db");
-            connection = DriverManager.getConnection(url);
+            // The SQLite JDBC driver is shaded and relocated into the plugin JAR.
+            // Velocity uses isolated plugin classloaders, so DriverManager's service-loader
+            // cannot see the relocated driver. We must load and invoke the driver directly
+            // instead of going through DriverManager.getConnection(), which would fail with
+            // "No suitable driver found" even though Class.forName() succeeds.
+            java.sql.Driver drv = (java.sql.Driver) Class.forName("com.betterlogin.libs.sqlite.JDBC")
+                    .getDeclaredConstructor()
+                    .newInstance();
+            String url = "jdbc:sqlite:" + dataDirectory.resolve("auth.db").toAbsolutePath();
+            connection = drv.connect(url, new java.util.Properties());
             // Enable WAL for better concurrent read performance
             try (Statement st = connection.createStatement()) {
                 st.execute("PRAGMA journal_mode=WAL");

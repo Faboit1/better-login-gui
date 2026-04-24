@@ -60,6 +60,9 @@ public class BridgeMessenger {
             player.getUniqueId().toString(),
             String.valueOf(isNewPlayer)
         );
+        if (config.isDebug()) {
+            logger.info("[DEBUG] → Paper AUTH_REQUIRED: player={} isNewPlayer={}", player.getUsername(), isNewPlayer);
+        }
         send(player, payload);
         authManager.setState(player.getUniqueId(), AuthState.PENDING_DIALOG);
     }
@@ -70,6 +73,9 @@ public class BridgeMessenger {
             "AUTH_SUCCESS",
             player.getUniqueId().toString()
         );
+        if (config.isDebug()) {
+            logger.info("[DEBUG] → Paper AUTH_SUCCESS: player={}", player.getUsername());
+        }
         send(player, payload);
         runPostAuthCommands(player, false);
     }
@@ -105,6 +111,9 @@ public class BridgeMessenger {
         if (parts.length < 2) return;
 
         String type = parts[0];
+        if (config.isDebug()) {
+            logger.info("[DEBUG] ← Paper plugin message: type={} parts={}", type, parts.length);
+        }
         if ("AUTH_ATTEMPT".equals(type)) {
             handleAuthAttempt(parts);
         }
@@ -150,12 +159,21 @@ public class BridgeMessenger {
 
         if (success) {
             String msg = wasRegister ? config.getMsgRegisterSuccess() : config.getMsgLoginSuccess();
+            if (config.isDebug()) {
+                logger.info("[DEBUG] AUTH_ATTEMPT success: player={} register={}", username, wasRegister);
+            }
             sendAuthResult(player, true, msg);
             runPostAuthCommands(player, wasRegister);
         } else {
             if (authManager.getState(uuid) == AuthState.KICKED) {
+                if (config.isDebug()) {
+                    logger.info("[DEBUG] AUTH_ATTEMPT: player={} kicked after too many failures", username);
+                }
                 LoginListener.kick(player, config.getMsgKicked());
                 return;
+            }
+            if (config.isDebug()) {
+                logger.info("[DEBUG] AUTH_ATTEMPT failure: player={} attempts={}", username, authManager.getFailedAttempts(uuid));
             }
             sendAuthResult(player, false, config.getMsgLoginFailed());
         }
@@ -181,8 +199,16 @@ public class BridgeMessenger {
     }
 
     private void send(Player player, String payload) {
-        player.getCurrentServer().ifPresent(server ->
-            server.sendPluginMessage(BRIDGE_CHANNEL, payload.getBytes(StandardCharsets.UTF_8))
+        player.getCurrentServer().ifPresentOrElse(
+            server -> {
+                if (config.isDebug()) {
+                    logger.info("[DEBUG] Sending plugin message to {} on server {}: {}",
+                            player.getUsername(), server.getServerInfo().getName(),
+                            payload.split(SEP, 2)[0]);
+                }
+                server.sendPluginMessage(BRIDGE_CHANNEL, payload.getBytes(StandardCharsets.UTF_8));
+            },
+            () -> logger.warn("Cannot send plugin message to {} – player has no current server", player.getUsername())
         );
     }
 }

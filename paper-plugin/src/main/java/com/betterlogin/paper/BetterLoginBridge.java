@@ -1,5 +1,6 @@
 package com.betterlogin.paper;
 
+import com.betterlogin.paper.command.BetterLoginTestCommand;
 import com.betterlogin.paper.dialog.DialogHandler;
 import com.betterlogin.paper.dialog.VanillaDialogHandler;
 import com.betterlogin.paper.listener.AuthPlayerListener;
@@ -52,6 +53,11 @@ public class BetterLoginBridge extends JavaPlugin {
         // Auth player listener (freeze movement, block commands, etc.)
         getServer().getPluginManager().registerEvents(
                 new AuthPlayerListener(this, dialogHandler, pendingAuth), this);
+
+        // Admin / debug command
+        BetterLoginTestCommand testCmd = new BetterLoginTestCommand(this);
+        getCommand("betterlogintest").setExecutor(testCmd);
+        getCommand("betterlogintest").setTabCompleter(testCmd);
 
         getLogger().info("BetterLogin bridge enabled.");
     }

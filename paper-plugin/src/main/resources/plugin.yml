@@ -7,3 +7,16 @@ authors:
   - BetterLogin
 softDepend:
   - ViaVersion
+
+commands:
+  betterlogintest:
+    description: BetterLogin Bridge admin and debug command
+    usage: /betterlogintest <status|debug|resend>
+    aliases: [blt]
+    permission: betterlogin.admin
+    permission-message: You don't have permission to use this command.
+
+permissions:
+  betterlogin.admin:
+    description: Allows use of BetterLogin admin commands on the Paper server
+    default: op

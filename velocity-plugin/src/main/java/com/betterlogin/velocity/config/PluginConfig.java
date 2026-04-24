@@ -14,6 +14,8 @@ public class PluginConfig {
     private final Path configPath;
     private final Logger logger;
 
+    private boolean debug;
+
     private String mainServer;
     private String limboServer;
 
@@ -58,6 +60,8 @@ public class PluginConfig {
             mainServer          = root.node("servers", "main").getString("main");
             limboServer         = root.node("servers", "limbo").getString("");
 
+            debug               = root.node("debug").getBoolean(false);
+
             sessionEnabled      = root.node("session", "enabled").getBoolean(true);
             sessionMaxAgeSeconds = root.node("session", "max-age-seconds").getLong(86400);
 
@@ -89,6 +93,8 @@ public class PluginConfig {
 
     public String getMainServer()       { return mainServer; }
     public String getLimboServer()      { return limboServer; }
+    public boolean isDebug()            { return debug; }
+    public void setDebug(boolean debug) { this.debug = debug; }
     public boolean isSessionEnabled()   { return sessionEnabled; }
     public long getSessionMaxAgeSeconds() { return sessionMaxAgeSeconds; }
     public int getMaxLoginAttempts()    { return maxLoginAttempts; }

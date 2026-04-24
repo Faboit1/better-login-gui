@@ -191,7 +191,71 @@ messages:
 
 ---
 
-## Limitations & version notes
+## Troubleshooting & Debug mode
+
+### Nothing happens when a player joins
+
+The most common cause is the Velocity plugin failing to start.
+Check your **Velocity console** at startup for this error:
+
+```
+[ERROR] [better-login]: Failed to initialize BetterLogin. Plugin will be inactive.
+```
+
+If you see it, the most likely culprit is an older version of the plugin JAR that has
+a SQLite classloader bug (fixed in 1.0.1+). Rebuild or download the latest JAR.
+
+### Enable debug mode
+
+**Velocity** – in `plugins/better-login/config.yml`:
+```yaml
+debug: true
+```
+
+**Paper bridge** – in `plugins/BetterLoginBridge/config.yml`:
+```yaml
+debug: true
+```
+
+Restart the server (or use the reload commands below). With debug mode on, every
+login event, plugin-message exchange, and database call is logged to the console so
+you can trace exactly where the flow breaks.
+
+### Admin commands
+
+#### Velocity proxy
+| Command | Description |
+|---------|-------------|
+| `/betterlogin status` | Show plugin state and each online player's auth state |
+| `/betterlogin debug [on\|off]` | Toggle debug logging without restarting |
+| `/betterlogin reload` | Reload `config.yml` |
+
+Alias: `/bl`  
+Permission: `betterlogin.admin` (granted to operators by default)
+
+#### Paper server
+| Command | Description |
+|---------|-------------|
+| `/betterlogintest status` | Show pending-auth players and channel info |
+| `/betterlogintest debug [on\|off]` | Toggle debug logging without restarting |
+| `/betterlogintest resend <player>` | Re-send the auth dialog to a stuck player |
+
+Alias: `/blt`  
+Permission: `betterlogin.admin` (granted to operators by default)
+
+### Common issues
+
+| Symptom | Likely cause | Fix |
+|---------|-------------|-----|
+| Plugin inactive at startup | SQLite driver error (old JAR) | Rebuild with latest code |
+| Dialog never appears | Paper bridge not receiving `AUTH_REQUIRED` | Enable debug on both sides; confirm channel name `betterlogin:bridge` is forwarded |
+| `No suitable driver found for jdbc:sqlite:…` | Plugin classloader isolation | Fixed in current code – rebuild the JAR |
+| Player frozen forever | `AUTH_RESULT` never arrived from Velocity | Enable debug on Velocity; check for errors in `handleAuthAttempt` |
+| Sign-editor opens instead of dialog | Client older than 1.21.6 | Expected behaviour for old clients; install AuthMe for fallback |
+
+---
+
+
 
 | Item | Note |
 |------|------|

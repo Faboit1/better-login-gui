@@ -58,7 +58,12 @@ public class LoginListener {
         boolean premium  = event.getPlayer().isOnlineMode();
 
         AuthState state = authManager.onPlayerConnect(uuid, username, premium);
-        logger.debug("Player {} ({}) connected – state={}", username, uuid, state);
+        if (config.isDebug()) {
+            logger.info("[DEBUG] LoginEvent: player={} uuid={} premium={} → state={}",
+                    username, uuid, premium, state);
+        } else {
+            logger.debug("Player {} ({}) connected – state={}", username, uuid, state);
+        }
     }
 
     /**
@@ -69,6 +74,10 @@ public class LoginListener {
     public void onChooseInitialServer(PlayerChooseInitialServerEvent event) {
         UUID uuid = event.getPlayer().getUniqueId();
         AuthState state = authManager.getState(uuid);
+
+        if (config.isDebug()) {
+            logger.info("[DEBUG] ChooseInitialServer: player={} state={}", event.getPlayer().getUsername(), state);
+        }
 
         // Premium and session-valid players skip auth and go directly to main
         if (state == AuthState.PREMIUM || state == AuthState.SESSION_VALID) {
@@ -94,6 +103,13 @@ public class LoginListener {
     public void onServerConnected(ServerConnectedEvent event) {
         UUID uuid = event.getPlayer().getUniqueId();
         AuthState state = authManager.getState(uuid);
+
+        if (config.isDebug()) {
+            logger.info("[DEBUG] ServerConnected: player={} server={} state={}",
+                    event.getPlayer().getUsername(),
+                    event.getServer().getServerInfo().getName(),
+                    state);
+        }
 
         if (state == AuthState.PREMIUM || state == AuthState.SESSION_VALID || state == AuthState.AUTHENTICATED) {
             // Notify Paper of a successful auto-login so it can run welcome commands
