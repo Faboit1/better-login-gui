@@ -49,6 +49,10 @@ public class BridgeMessageListener implements PluginMessageListener {
         if (parts.length < 2) return;
 
         String type = parts[0];
+        if (plugin.getConfig().getBoolean("debug", false)) {
+            plugin.getLogger().info("[DEBUG] Plugin message received: type=" + type
+                    + " player=" + player.getName() + " parts=" + parts.length);
+        }
         switch (type) {
             case "AUTH_REQUIRED" -> handleAuthRequired(parts, player);
             case "AUTH_SUCCESS"  -> handleAuthSuccess(parts, player);
@@ -65,9 +69,11 @@ public class BridgeMessageListener implements PluginMessageListener {
         if (parts.length < 3) return;
         boolean isNewPlayer = Boolean.parseBoolean(parts[2]);
 
-        // pendingAuth is managed by VanillaDialogHandler:
-        //  - 1.21.6+ clients: added when the dialog is shown, removed on response or quit.
-        //  - Older clients:   NOT added – AuthMe + AuthMeVelocity handle those players.
+        if (plugin.getConfig().getBoolean("debug", false)) {
+            plugin.getLogger().info("[DEBUG] AUTH_REQUIRED: player=" + player.getName()
+                    + " isNewPlayer=" + isNewPlayer);
+        }
+
         plugin.getServer().getScheduler().runTask(plugin, () -> {
             if (isNewPlayer) {
                 dialogHandler.showRegisterDialog(player);
@@ -79,6 +85,9 @@ public class BridgeMessageListener implements PluginMessageListener {
 
     private void handleAuthSuccess(String[] parts, Player player) {
         // AUTH_SUCCESS\0{uuid} – premium / session auto-login
+        if (plugin.getConfig().getBoolean("debug", false)) {
+            plugin.getLogger().info("[DEBUG] AUTH_SUCCESS: player=" + player.getName());
+        }
         pendingAuth.remove(player.getUniqueId());
         String welcomeMsg = plugin.getConfig().getString("messages.welcome",
             "&aWelcome, {player}!")
@@ -91,6 +100,10 @@ public class BridgeMessageListener implements PluginMessageListener {
         if (parts.length < 4) return;
         boolean success = Boolean.parseBoolean(parts[2]);
         String message  = parts[3];
+
+        if (plugin.getConfig().getBoolean("debug", false)) {
+            plugin.getLogger().info("[DEBUG] AUTH_RESULT: player=" + player.getName() + " success=" + success);
+        }
 
         player.sendMessage(LEGACY.deserialize(message));
 

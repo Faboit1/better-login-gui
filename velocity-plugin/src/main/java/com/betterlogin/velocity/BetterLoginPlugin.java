@@ -2,11 +2,13 @@ package com.betterlogin.velocity;
 
 import com.betterlogin.velocity.auth.AuthManager;
 import com.betterlogin.velocity.bridge.BridgeMessenger;
+import com.betterlogin.velocity.command.BetterLoginCommand;
 import com.betterlogin.velocity.config.PluginConfig;
 import com.betterlogin.velocity.listener.LoginListener;
 import com.betterlogin.velocity.storage.AuthStorage;
 import com.betterlogin.velocity.storage.SQLiteStorage;
 import com.google.inject.Inject;
+import com.velocitypowered.api.command.CommandMeta;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
@@ -58,6 +60,14 @@ public class BetterLoginPlugin {
             proxy.getChannelRegistrar().register(BRIDGE_CHANNEL);
             proxy.getEventManager().register(this, new LoginListener(proxy, this, authManager, bridgeMessenger, config, logger));
             proxy.getEventManager().register(this, bridgeMessenger);
+
+            // Register /betterlogin admin command
+            CommandMeta meta = proxy.getCommandManager()
+                    .metaBuilder("betterlogin")
+                    .aliases("bl")
+                    .plugin(this)
+                    .build();
+            proxy.getCommandManager().register(meta, new BetterLoginCommand(this));
 
             logger.info("BetterLogin initialized successfully.");
         } catch (Exception e) {

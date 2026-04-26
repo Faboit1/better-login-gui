@@ -1,5 +1,8 @@
 # BetterLogin Bridge – Paper Plugin Config
 
+# Set to true for verbose logging useful when diagnosing connection issues.
+debug: false
+
 messages:
   # Shown when a premium player (or session player) auto-logs in
   welcome: "&aWelcome, {player}!"

@@ -1,5 +1,8 @@
 # BetterLogin – Velocity Proxy Plugin Config
 
+# Set to true for verbose logging useful when diagnosing connection issues.
+debug: false
+
 # Names of backend servers as defined in velocity.toml
 servers:
   # The main game server players land on after authenticating
