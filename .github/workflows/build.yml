@@ -39,13 +39,13 @@ jobs:
       - name: Upload Velocity plugin artifact
         uses: actions/upload-artifact@v4
         with:
-          name: velocity-plugin
-          path: velocity-plugin/build/libs/velocity-plugin-*.jar
+          name: BetterLogin-Velocity
+          path: velocity-plugin/build/libs/BetterLogin-Velocity-*.jar
           if-no-files-found: error
 
       - name: Upload Paper bridge artifact
         uses: actions/upload-artifact@v4
         with:
-          name: paper-plugin
-          path: paper-plugin/build/libs/paper-plugin-*.jar
+          name: BetterLogin-Bridge
+          path: paper-plugin/build/libs/BetterLogin-Bridge-*.jar
           if-no-files-found: error
