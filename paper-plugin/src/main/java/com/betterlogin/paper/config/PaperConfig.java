@@ -221,7 +221,7 @@ public class PaperConfig {
     public boolean isAuthBossBarEnabled()      { return authBossBarEnabled; }
     public String getAuthBossBarText()         { return authBossBarText; }
     public BossBar.Color getAuthBossBarColor() { return authBossBarColor; }
-    public BossBar.Overlay getAuthBossBarStyle(){ return authBossBarStyle; }
+    public BossBar.Overlay getAuthBossBarStyle() { return authBossBarStyle; }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Accessors – auth-display : action bar

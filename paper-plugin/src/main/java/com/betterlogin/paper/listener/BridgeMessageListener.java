@@ -164,8 +164,9 @@ public class BridgeMessageListener implements PluginMessageListener {
     // ------------------------------------------------------------------
 
     /**
-     * Delegates to {@link BetterLoginBridge#showAuthEffectsAndDialog} which shows the
-     * configured title, boss bar, action bar, and then the appropriate dialog.
+     * Package-private – delegates to {@link BetterLoginBridge#showAuthEffectsAndDialog}.
+     * Kept as a named method so it can be called from unit tests or within this package
+     * without exposing it as part of the public API.
      */
     void showDialogWithEffects(Player player, boolean isNewPlayer) {
         plugin.showAuthEffectsAndDialog(player, isNewPlayer);
