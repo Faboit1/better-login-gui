@@ -11,10 +11,16 @@ softDepend:
 commands:
   betterlogintest:
     description: BetterLogin Bridge admin and debug command
-    usage: /betterlogintest <status|debug|resend>
+    usage: /betterlogintest <status|debug|resend|reload>
     aliases: [blt]
     permission: betterlogin.admin
     permission-message: You don't have permission to use this command.
+  login:
+    description: Authenticate with your password (for clients that do not support native dialogs)
+    usage: /login <password>
+  register:
+    description: Register with a new password (for clients that do not support native dialogs)
+    usage: /register <password>
 
 permissions:
   betterlogin.admin:

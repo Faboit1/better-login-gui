@@ -17,7 +17,17 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Enforces restrictions on unauthenticated players:
+ * Enforces restrictions on unauthenticated players and handles the dialog timing fix.
+ *
+ * <h2>Timing fix</h2>
+ * <p>Velocity sends {@code AUTH_REQUIRED} as soon as a player connects to the backend.
+ * Paper may receive that plugin message before {@code PlayerJoinEvent} fires, at which
+ * point {@code player.showDialog()} silently fails because the client is not fully
+ * spawned.  {@link BridgeMessageListener} stores the pending request in
+ * {@link BetterLoginBridge#getPendingDialogRequests()}; this listener picks it up in
+ * {@link #onJoin} once the player is guaranteed to be fully in the world.</p>
+ *
+ * <h2>Restrictions</h2>
  * <ul>
  *   <li>Block movement, interaction, inventory, chat, and commands.</li>
  *   <li>Re-open the dialog if the player somehow closes it without submitting.</li>
@@ -34,6 +44,25 @@ public class AuthPlayerListener implements Listener {
         this.plugin = plugin;
         this.dialogHandler = dialogHandler;
         this.pendingAuth = pendingAuth;
+    }
+
+    /**
+     * Timing-fix handler: if Velocity sent AUTH_REQUIRED before this player fully spawned,
+     * the request is held in {@code pendingDialogRequests} and shown here after the player
+     * is guaranteed to be in the world.
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onJoin(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+        UUID uuid = player.getUniqueId();
+
+        Boolean isNewPlayer = plugin.getPendingDialogRequests().remove(uuid);
+        if (isNewPlayer == null) return; // No pending request – normal join
+
+        // Run 1 tick later so the client finishes loading the world before the dialog appears
+        plugin.getServer().getScheduler().runTaskLater(plugin,
+                () -> { if (player.isOnline()) plugin.showAuthEffectsAndDialog(player, isNewPlayer); },
+                1L);
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
@@ -75,7 +104,7 @@ public class AuthPlayerListener implements Listener {
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onCommand(PlayerCommandPreprocessEvent event) {
         if (!isPending(event.getPlayer())) return;
-        // Allow /login and /register in case the player prefers chat commands as a fallback
+        // Allow /login and /register for fallback authentication
         String cmd = event.getMessage().toLowerCase();
         if (!cmd.startsWith("/login") && !cmd.startsWith("/register")) {
             event.setCancelled(true);
@@ -94,7 +123,11 @@ public class AuthPlayerListener implements Listener {
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
-        pendingAuth.remove(event.getPlayer().getUniqueId());
+        UUID uuid = event.getPlayer().getUniqueId();
+        pendingAuth.remove(uuid);
+        plugin.getPendingDialogRequests().remove(uuid);
+        plugin.getPendingRegistration().remove(uuid);
+        plugin.removeBossBar(uuid);
     }
 
     private boolean isPending(Player player) {

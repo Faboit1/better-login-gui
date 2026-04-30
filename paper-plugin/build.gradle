@@ -2,6 +2,10 @@ plugins {
     id 'com.gradleup.shadow' version '8.3.5'
 }
 
+base {
+    archivesName = 'BetterLogin-Bridge'
+}
+
 repositories {
     // ViaVersion API (for soft-depend client protocol version detection)
     maven { url = 'https://repo.viaversion.com' }

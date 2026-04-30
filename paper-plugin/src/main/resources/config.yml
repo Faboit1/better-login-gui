@@ -4,11 +4,9 @@
 debug: false
 
 messages:
-  # Shown when a premium player (or session player) auto-logs in
+  # Shown when a premium player (or session player) auto-logs in.
+  # Placeholder: {player} = username
   welcome: "&aWelcome, {player}!"
-  # Shown inside the sign editor prompt (action bar)
-  login-prompt: "&eLine 1 of the sign: enter your password, then click Done."
-  register-prompt: "&eLine 1 of the sign: choose a password, then click Done."
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Dialog screen customization (Minecraft 1.21.6+ native dialogs)
@@ -18,28 +16,24 @@ messages:
 # ──────────────────────────────────────────────────────────────────────────────
 dialog:
 
-  # ── Login dialog ──────────────────────────────────────────────────────────
+  # ── Login dialog ────────────────────────────────────────────────────────────
   login:
-    # Title bar text and colour
     title: "Login"
     title-color: "GOLD"
-    # Body description text and colour
     body: "Enter your password to continue."
     body-color: "GRAY"
-    # Password input field label
     password-label: "Password"
-    # Maximum characters accepted in the password field
     max-password-length: 50
-    # Submit button label and colour
     submit-button: "Login"
     submit-color: "GREEN"
-    # Cancel button label and colour
     cancel-button: "Cancel"
     cancel-color: "RED"
-    # Whether pressing Escape closes the dialog (keep false to force auth)
+    # Set to true to let players press Escape to dismiss the dialog.
+    # WARNING: keeping this false is strongly recommended – otherwise players
+    # can bypass the auth screen by pressing Escape.
     can-close-with-escape: false
 
-  # ── Register dialog ────────────────────────────────────────────────────────
+  # ── Register dialog ──────────────────────────────────────────────────────────
   register:
     title: "Create Account"
     title-color: "GOLD"
@@ -53,8 +47,47 @@ dialog:
     cancel-color: "RED"
     can-close-with-escape: false
 
-  # ── Fallback messages for clients older than 1.21.6 ───────────────────────
-  # Placeholder: {command} is replaced with the appropriate /login or /register command.
+  # ── Fallback messages for clients older than 1.21.6 ─────────────────────────
+  # These clients cannot see the native dialog and must type /login or /register.
+  # Placeholder: {command} is replaced with the appropriate command string.
   fallback:
     no-support-message: "&eYour client does not support dialog screens. Please type {command} to authenticate."
     action-bar-message: "&eType {command} to authenticate"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Auth-display effects shown to players while they are authenticating.
+# These appear in addition to the dialog screen and apply to all client versions.
+# ──────────────────────────────────────────────────────────────────────────────
+auth-display:
+
+  # ── Title / subtitle ─────────────────────────────────────────────────────────
+  title:
+    enabled: true
+    # Shown to players who already have an account
+    login-title: "&6BetterLogin"
+    login-subtitle: "&7Please enter your password..."
+    # Shown to first-time players creating an account
+    register-title: "&6BetterLogin"
+    register-subtitle: "&7Please choose a password..."
+    # Timing in ticks (20 ticks = 1 second).
+    # Set 'stay' to a high number so the title persists until auth completes.
+    fade-in: 10
+    stay: 9999
+    fade-out: 20
+
+  # ── Boss bar ──────────────────────────────────────────────────────────────────
+  boss-bar:
+    enabled: true
+    text: "&eAuthentication Required"
+    # Color: PINK, BLUE, RED, GREEN, YELLOW, PURPLE, WHITE
+    color: "YELLOW"
+    # Style: PROGRESS, NOTCHED_6, NOTCHED_10, NOTCHED_12, NOTCHED_20
+    style: "PROGRESS"
+
+  # ── Action bar ────────────────────────────────────────────────────────────────
+  action-bar:
+    # Disabled by default as the dialog itself provides instructions.
+    # Enable to show a persistent reminder below the dialog.
+    enabled: false
+    login-message: "&eEnter your password in the dialog above"
+    register-message: "&eChoose a password in the dialog above"
