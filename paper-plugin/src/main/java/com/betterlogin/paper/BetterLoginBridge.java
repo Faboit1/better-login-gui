@@ -1,6 +1,7 @@
 package com.betterlogin.paper;
 
 import com.betterlogin.paper.command.BetterLoginTestCommand;
+import com.betterlogin.paper.config.PaperConfig;
 import com.betterlogin.paper.dialog.DialogHandler;
 import com.betterlogin.paper.dialog.VanillaDialogHandler;
 import com.betterlogin.paper.listener.AuthPlayerListener;
@@ -36,13 +37,15 @@ public class BetterLoginBridge extends JavaPlugin {
     /** UUIDs of players currently inside the dialog authentication flow. */
     private final Set<UUID> pendingAuth = Collections.synchronizedSet(new HashSet<>());
 
+    private PaperConfig paperConfig;
     private DialogHandler dialogHandler;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
 
-        dialogHandler = new VanillaDialogHandler(this, pendingAuth);
+        paperConfig = new PaperConfig(this);
+        dialogHandler = new VanillaDialogHandler(this, pendingAuth, paperConfig);
         BridgeMessageListener bridgeListener =
                 new BridgeMessageListener(this, dialogHandler, pendingAuth);
 
@@ -70,5 +73,6 @@ public class BetterLoginBridge extends JavaPlugin {
 
     public Set<UUID> getPendingAuth() { return pendingAuth; }
     public DialogHandler getDialogHandler() { return dialogHandler; }
+    public PaperConfig getPaperConfig() { return paperConfig; }
 }
 

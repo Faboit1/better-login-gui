@@ -9,3 +9,52 @@ messages:
   # Shown inside the sign editor prompt (action bar)
   login-prompt: "&eLine 1 of the sign: enter your password, then click Done."
   register-prompt: "&eLine 1 of the sign: choose a password, then click Done."
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Dialog screen customization (Minecraft 1.21.6+ native dialogs)
+# Colours accept named Adventure colours (BLACK, DARK_BLUE, DARK_GREEN,
+# DARK_AQUA, DARK_RED, DARK_PURPLE, GOLD, GRAY, DARK_GRAY, BLUE, GREEN,
+# AQUA, RED, LIGHT_PURPLE, YELLOW, WHITE) or hex codes (#RRGGBB).
+# ──────────────────────────────────────────────────────────────────────────────
+dialog:
+
+  # ── Login dialog ──────────────────────────────────────────────────────────
+  login:
+    # Title bar text and colour
+    title: "Login"
+    title-color: "GOLD"
+    # Body description text and colour
+    body: "Enter your password to continue."
+    body-color: "GRAY"
+    # Password input field label
+    password-label: "Password"
+    # Maximum characters accepted in the password field
+    max-password-length: 50
+    # Submit button label and colour
+    submit-button: "Login"
+    submit-color: "GREEN"
+    # Cancel button label and colour
+    cancel-button: "Cancel"
+    cancel-color: "RED"
+    # Whether pressing Escape closes the dialog (keep false to force auth)
+    can-close-with-escape: false
+
+  # ── Register dialog ────────────────────────────────────────────────────────
+  register:
+    title: "Create Account"
+    title-color: "GOLD"
+    body: "Choose a password for your new account."
+    body-color: "GRAY"
+    password-label: "Password"
+    max-password-length: 50
+    submit-button: "Register"
+    submit-color: "GREEN"
+    cancel-button: "Cancel"
+    cancel-color: "RED"
+    can-close-with-escape: false
+
+  # ── Fallback messages for clients older than 1.21.6 ───────────────────────
+  # Placeholder: {command} is replaced with the appropriate /login or /register command.
+  fallback:
+    no-support-message: "&eYour client does not support dialog screens. Please type {command} to authenticate."
+    action-bar-message: "&eType {command} to authenticate"

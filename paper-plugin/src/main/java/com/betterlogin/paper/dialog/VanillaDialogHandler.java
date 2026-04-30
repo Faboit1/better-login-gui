@@ -1,6 +1,7 @@
 package com.betterlogin.paper.dialog;
 
 import com.betterlogin.paper.BetterLoginBridge;
+import com.betterlogin.paper.config.PaperConfig;
 import io.papermc.paper.dialog.Dialog;
 import io.papermc.paper.registry.data.dialog.ActionButton;
 import io.papermc.paper.registry.data.dialog.DialogBase;
@@ -11,7 +12,7 @@ import io.papermc.paper.registry.data.dialog.input.DialogInput;
 import io.papermc.paper.registry.data.dialog.type.DialogType;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickCallback;
-import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.entity.Player;
 
 import java.nio.charset.StandardCharsets;
@@ -55,13 +56,17 @@ public class VanillaDialogHandler implements DialogHandler {
     static final int DIALOG_MIN_PROTOCOL = 771;
 
     private static final String SEP = "\0";
+    private static final LegacyComponentSerializer LEGACY =
+            LegacyComponentSerializer.legacyAmpersand();
 
     private final BetterLoginBridge plugin;
     private final Set<UUID> pendingAuth;
+    private final PaperConfig config;
 
-    public VanillaDialogHandler(BetterLoginBridge plugin, Set<UUID> pendingAuth) {
+    public VanillaDialogHandler(BetterLoginBridge plugin, Set<UUID> pendingAuth, PaperConfig config) {
         this.plugin = plugin;
         this.pendingAuth = pendingAuth;
+        this.config = config;
     }
 
     // ------------------------------------------------------------------
