@@ -140,7 +140,7 @@ public class VanillaDialogHandler implements DialogHandler {
         int maxLength = isRegister ? config.getRegisterMaxPasswordLength() : config.getLoginMaxPasswordLength();
         boolean canClose = isRegister ? config.isRegisterCanCloseWithEscape() : config.isLoginCanCloseWithEscape();
 
-        // Build the callback – invoked when the player clicks the submit button.
+        // Build the submit callback – invoked when the player clicks the submit button.
         DialogActionCallback callback = (response, audience) -> {
             String pw = response.getText("password");
             if (pw == null) pw = "";
@@ -153,6 +153,16 @@ public class VanillaDialogHandler implements DialogHandler {
                 }
             });
         };
+
+        // Build the cancel callback – re-shows the dialog after 1 s so the player
+        // is never left frozen without a dialog.
+        DialogActionCallback cancelCallback = (response, audience) ->
+            plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+                Player p = plugin.getServer().getPlayer(uuid);
+                if (p != null && pendingAuth.contains(uuid)) {
+                    openNativeDialog(p, isRegister);
+                }
+            }, 20L);
 
         Dialog dialog = Dialog.create(factory -> factory.empty()
                 .base(DialogBase.builder(title)
@@ -169,6 +179,7 @@ public class VanillaDialogHandler implements DialogHandler {
                                 .action(DialogAction.customClick(callback, ClickCallback.Options.builder().build()))
                                 .build(),
                         ActionButton.builder(cancelLabel)
+                                .action(DialogAction.customClick(cancelCallback, ClickCallback.Options.builder().build()))
                                 .build()
                 )));
 
