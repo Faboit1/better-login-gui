@@ -47,6 +47,7 @@ public class BetterLoginTestCommand implements CommandExecutor, TabCompleter {
             case "status" -> handleStatus(sender);
             case "debug"  -> handleDebug(sender, args);
             case "resend" -> handleResend(sender, args);
+            case "reload" -> handleReload(sender);
             default       -> sendHelp(sender, label);
         }
         return true;
@@ -124,6 +125,18 @@ public class BetterLoginTestCommand implements CommandExecutor, TabCompleter {
         plugin.getLogger().info("Auth dialog re-sent to " + target.getName() + " by " + sender.getName());
     }
 
+    private void handleReload(CommandSender sender) {
+        try {
+            plugin.reloadConfig();
+            plugin.getPaperConfig().reload();
+            sender.sendMessage(Component.text("BetterLogin Bridge config reloaded.", NamedTextColor.GREEN));
+            plugin.getLogger().info("Config reloaded by " + sender.getName());
+        } catch (Exception e) {
+            sender.sendMessage(Component.text("Failed to reload config: " + e.getMessage(), NamedTextColor.RED));
+            plugin.getLogger().severe("Config reload failed: " + e.getMessage());
+        }
+    }
+
     private void sendHelp(CommandSender sender, String label) {
         sender.sendMessage(Component.text("BetterLogin Bridge commands:", NamedTextColor.GOLD));
         sender.sendMessage(Component.text("  /" + label + " status           ", NamedTextColor.YELLOW)
@@ -132,13 +145,15 @@ public class BetterLoginTestCommand implements CommandExecutor, TabCompleter {
                 .append(Component.text("- toggle verbose debug logging", NamedTextColor.GRAY)));
         sender.sendMessage(Component.text("  /" + label + " resend <player>  ", NamedTextColor.YELLOW)
                 .append(Component.text("- re-send auth dialog to a stuck player", NamedTextColor.GRAY)));
+        sender.sendMessage(Component.text("  /" + label + " reload           ", NamedTextColor.YELLOW)
+                .append(Component.text("- reload config.yml", NamedTextColor.GRAY)));
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (!sender.hasPermission("betterlogin.admin")) return List.of();
         if (args.length == 1) {
-            return List.of("status", "debug", "resend");
+            return List.of("status", "debug", "resend", "reload");
         }
         if (args.length == 2) {
             if (args[0].equalsIgnoreCase("debug")) return List.of("on", "off");

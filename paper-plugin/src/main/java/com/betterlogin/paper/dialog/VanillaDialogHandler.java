@@ -1,6 +1,7 @@
 package com.betterlogin.paper.dialog;
 
 import com.betterlogin.paper.BetterLoginBridge;
+import com.betterlogin.paper.config.PaperConfig;
 import io.papermc.paper.dialog.Dialog;
 import io.papermc.paper.registry.data.dialog.ActionButton;
 import io.papermc.paper.registry.data.dialog.DialogBase;
@@ -11,7 +12,7 @@ import io.papermc.paper.registry.data.dialog.input.DialogInput;
 import io.papermc.paper.registry.data.dialog.type.DialogType;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickCallback;
-import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.entity.Player;
 
 import java.nio.charset.StandardCharsets;
@@ -28,23 +29,11 @@ import java.util.UUID;
  *   <li>{@link #supportsDialogs} checks the player's client protocol version via ViaVersion
  *       (soft-depend).  Clients at protocol {@value #DIALOG_MIN_PROTOCOL} or above get the
  *       native Minecraft dialog; older clients receive a plain-text prompt to use
- *       {@code /login} or {@code /register} (handled by the already-installed AuthMe plugin).</li>
- *   <li>When a 1.21.6+ player clicks the submit button, the {@link io.papermc.paper.registry.data.dialog.action.DialogActionCallback}
- *       registered on that button fires and forwards the response to Velocity.</li>
+ *       {@code /login} or {@code /register} (handled by {@link com.betterlogin.paper.command.FallbackAuthCommand}).</li>
+ *   <li>When a 1.21.6+ player clicks the submit button, the
+ *       {@link DialogActionCallback} registered on that button fires and
+ *       forwards the response to Velocity.</li>
  * </ol>
- *
- * <h2>API reference</h2>
- * <ul>
- *   <li>Dialog builder: {@link Dialog#create}</li>
- *   <li>Text input: {@link DialogInput#text(String, Component)}</li>
- *   <li>Button callback: {@link DialogAction#customClick(io.papermc.paper.registry.data.dialog.action.DialogActionCallback, ClickCallback.Options)}</li>
- *   <li>Show dialog: {@code player.showDialog(dialog)} (from {@link net.kyori.adventure.audience.Audience})</li>
- *   <li>Read response: {@link io.papermc.paper.dialog.DialogResponseView#getText(String)}</li>
- * </ul>
- *
- * <p><strong>Protocol version note:</strong> {@link #DIALOG_MIN_PROTOCOL} is the protocol
- * number for Minecraft 1.21.6.  Verify against
- * <a href="https://wiki.vg/Protocol_version_number">wiki.vg</a> if Mojang renumbers.</p>
  */
 public class VanillaDialogHandler implements DialogHandler {
 
@@ -55,13 +44,17 @@ public class VanillaDialogHandler implements DialogHandler {
     static final int DIALOG_MIN_PROTOCOL = 771;
 
     private static final String SEP = "\0";
+    private static final LegacyComponentSerializer LEGACY =
+            LegacyComponentSerializer.legacyAmpersand();
 
     private final BetterLoginBridge plugin;
     private final Set<UUID> pendingAuth;
+    private final PaperConfig config;
 
-    public VanillaDialogHandler(BetterLoginBridge plugin, Set<UUID> pendingAuth) {
+    public VanillaDialogHandler(BetterLoginBridge plugin, Set<UUID> pendingAuth, PaperConfig config) {
         this.plugin = plugin;
         this.pendingAuth = pendingAuth;
+        this.config = config;
     }
 
     // ------------------------------------------------------------------
@@ -91,6 +84,7 @@ public class VanillaDialogHandler implements DialogHandler {
     @Override
     public void handleResponse(Player player, String input, boolean isRegister) {
         pendingAuth.remove(player.getUniqueId());
+        plugin.getPendingRegistration().remove(player.getUniqueId());
         forwardToVelocity(player, input.trim(), isRegister);
     }
 
@@ -104,8 +98,7 @@ public class VanillaDialogHandler implements DialogHandler {
      *
      * <p>If ViaVersion is present, the actual client protocol version is compared
      * against {@link #DIALOG_MIN_PROTOCOL}.  Without ViaVersion (or if the look-up
-     * fails), we assume the client is running the same version as the server (1.21.10
-     * supports dialogs, so the result is {@code true}).</p>
+     * fails), we assume the client is running the same version as the server.</p>
      */
     private boolean supportsDialogs(Player player) {
         if (plugin.getServer().getPluginManager().isPluginEnabled("ViaVersion")) {
@@ -121,11 +114,7 @@ public class VanillaDialogHandler implements DialogHandler {
     }
 
     /**
-     * Builds and shows a native Paper dialog to the player.
-     *
-     * <p>The submit button registers a {@link io.papermc.paper.registry.data.dialog.action.DialogActionCallback}
-     * closure.  When the player clicks it, the password field value is read from
-     * {@link io.papermc.paper.dialog.DialogResponseView#getText(String)} and forwarded to Velocity.</p>
+     * Builds and shows a native Paper dialog to the player using values from config.
      *
      * <p>If showing the dialog throws at runtime (e.g. missing API on this Paper build),
      * the player is removed from {@code pendingAuth} and the plain-text fallback is shown.</p>
@@ -133,43 +122,53 @@ public class VanillaDialogHandler implements DialogHandler {
     private void openNativeDialog(Player player, boolean isRegister) {
         UUID uuid = player.getUniqueId();
 
-        String titleText  = isRegister ? "Create Account" : "Login";
-        String bodyText   = isRegister
-                ? "Choose a password for your new account."
-                : "Enter your password to continue.";
-        String submitText = isRegister ? "Register" : "Login";
+        // Read all dialog text and colours from config
+        Component title = Component.text(
+                isRegister ? config.getRegisterTitle()       : config.getLoginTitle(),
+                isRegister ? config.getRegisterTitleColor()  : config.getLoginTitleColor());
+        Component body = Component.text(
+                isRegister ? config.getRegisterBody()        : config.getLoginBody(),
+                isRegister ? config.getRegisterBodyColor()   : config.getLoginBodyColor());
+        Component submitLabel = Component.text(
+                isRegister ? config.getRegisterSubmitButton() : config.getLoginSubmitButton(),
+                isRegister ? config.getRegisterSubmitColor()  : config.getLoginSubmitColor());
+        Component cancelLabel = Component.text(
+                isRegister ? config.getRegisterCancelButton() : config.getLoginCancelButton(),
+                isRegister ? config.getRegisterCancelColor()  : config.getLoginCancelColor());
+        Component passwordLabel = Component.text(
+                isRegister ? config.getRegisterPasswordLabel() : config.getLoginPasswordLabel());
+        int maxLength = isRegister ? config.getRegisterMaxPasswordLength() : config.getLoginMaxPasswordLength();
+        boolean canClose = isRegister ? config.isRegisterCanCloseWithEscape() : config.isLoginCanCloseWithEscape();
 
-        // Build the callback closure – invoked when the player clicks the submit button.
-        // Captures uuid and isRegister so no state map is needed.
+        // Build the callback – invoked when the player clicks the submit button.
         DialogActionCallback callback = (response, audience) -> {
-                    String pw = response.getText("password");
-                    if (pw == null) pw = "";
-                    final String password = pw;
-                    // The callback may fire off the main thread – schedule to be safe.
-                    plugin.getServer().getScheduler().runTask(plugin, () -> {
-                        Player p = plugin.getServer().getPlayer(uuid);
-                        if (p != null && pendingAuth.contains(uuid)) {
-                            handleResponse(p, password, isRegister);
-                        }
-                    });
-                };
+            String pw = response.getText("password");
+            if (pw == null) pw = "";
+            final String password = pw;
+            // The callback may fire off the main thread – schedule to be safe.
+            plugin.getServer().getScheduler().runTask(plugin, () -> {
+                Player p = plugin.getServer().getPlayer(uuid);
+                if (p != null && pendingAuth.contains(uuid)) {
+                    handleResponse(p, password, isRegister);
+                }
+            });
+        };
 
         Dialog dialog = Dialog.create(factory -> factory.empty()
-                .base(DialogBase.builder(Component.text(titleText, NamedTextColor.GOLD))
-                        .body(List.of(DialogBody.plainMessage(
-                                Component.text(bodyText, NamedTextColor.GRAY))))
+                .base(DialogBase.builder(title)
+                        .body(List.of(DialogBody.plainMessage(body)))
                         .inputs(List.of(
-                                DialogInput.text("password", Component.text("Password"))
-                                        .maxLength(50)
+                                DialogInput.text("password", passwordLabel)
+                                        .maxLength(maxLength)
                                         .build()))
-                        .canCloseWithEscape(false)
+                        .canCloseWithEscape(canClose)
                         .afterAction(DialogBase.DialogAfterAction.WAIT_FOR_RESPONSE)
                         .build())
                 .type(DialogType.confirmation(
-                        ActionButton.builder(Component.text(submitText, NamedTextColor.GREEN))
+                        ActionButton.builder(submitLabel)
                                 .action(DialogAction.customClick(callback, ClickCallback.Options.builder().build()))
                                 .build(),
-                        ActionButton.builder(Component.text("Cancel", NamedTextColor.RED))
+                        ActionButton.builder(cancelLabel)
                                 .build()
                 )));
 
@@ -187,28 +186,25 @@ public class VanillaDialogHandler implements DialogHandler {
     }
 
     /**
-     * Shown to players whose client is older than 1.21.6 (no native dialog support).
+     * Shown to players whose client does not support the 1.21.6+ native dialog.
      *
-     * <p>AuthMe (already installed) handles {@code /login} and {@code /register} for
-     * these players.  BetterLogin does not add them to {@code pendingAuth} so AuthMe's
-     * own restrictions apply without interference.</p>
+     * <p>The player is added to {@code pendingAuth} (so movement/interaction restrictions
+     * apply) and to {@code pendingRegistration} (so the {@code /login} and
+     * {@code /register} commands know which flow the player is in).</p>
      */
     private void sendFallbackMessage(Player player, boolean isRegister) {
-        String command = isRegister
-                ? "/register <password> <confirmPassword>"
-                : "/login <password>";
+        UUID uuid = player.getUniqueId();
+        // Keep player frozen via pendingAuth while they type their password
+        pendingAuth.add(uuid);
+        // Track whether this player is registering or logging in
+        plugin.getPendingRegistration().put(uuid, isRegister);
 
-        player.sendMessage(Component.text()
-                .append(Component.text(
-                        "Your client does not support dialog screens. ",
-                        NamedTextColor.YELLOW))
-                .append(Component.text("Please type ", NamedTextColor.YELLOW))
-                .append(Component.text(command, NamedTextColor.AQUA))
-                .append(Component.text(" to authenticate.", NamedTextColor.YELLOW))
-                .build());
+        String command = isRegister ? "/register <password>" : "/login <password>";
+        String chatMsg   = config.getFallbackNoSupportMessage().replace("{command}", command);
+        String actionMsg = config.getFallbackActionBarMessage().replace("{command}", command);
 
-        player.sendActionBar(Component.text("Type " + command + " to authenticate",
-                NamedTextColor.YELLOW));
+        player.sendMessage(LEGACY.deserialize(chatMsg));
+        player.sendActionBar(LEGACY.deserialize(actionMsg));
     }
 
     private void forwardToVelocity(Player player, String password, boolean isRegister) {
@@ -223,4 +219,3 @@ public class VanillaDialogHandler implements DialogHandler {
                 payload.getBytes(StandardCharsets.UTF_8));
     }
 }
-

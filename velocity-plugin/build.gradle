@@ -2,6 +2,10 @@ plugins {
     id 'com.gradleup.shadow' version '8.3.5'
 }
 
+base {
+    archivesName = 'BetterLogin-Velocity'
+}
+
 dependencies {
     compileOnly 'com.velocitypowered:velocity-api:3.3.0-SNAPSHOT'
     annotationProcessor 'com.velocitypowered:velocity-api:3.3.0-SNAPSHOT'
