@@ -18,8 +18,10 @@ dependencies {
 
 shadowJar {
     archiveClassifier.set('')
-    // Relocate shaded dependencies to avoid classpath conflicts
-    relocate 'org.sqlite', 'com.betterlogin.libs.sqlite'
+    // NOTE: org.sqlite must NOT be relocated. The sqlite-jdbc native library (.so)
+    // has JNI function names compiled against the original 'org.sqlite' package.
+    // Relocating the Java classes breaks the JNI bindings at runtime with
+    // NoClassDefFoundError: org/sqlite/core/NativeDB.
     relocate 'org.mindrot.jbcrypt', 'com.betterlogin.libs.bcrypt'
     relocate 'org.spongepowered.configurate', 'com.betterlogin.libs.configurate'
     relocate 'io.leangen.geantyref', 'com.betterlogin.libs.geantyref'

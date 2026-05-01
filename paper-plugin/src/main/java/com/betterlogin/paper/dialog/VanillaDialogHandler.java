@@ -43,6 +43,9 @@ public class VanillaDialogHandler implements DialogHandler {
      */
     static final int DIALOG_MIN_PROTOCOL = 771;
 
+    /** Ticks to wait before re-showing the dialog after Cancel or a failed attempt (1 second = 20 ticks). */
+    private static final long DIALOG_RESHOW_DELAY_TICKS = 20L;
+
     private static final String SEP = "\0";
     private static final LegacyComponentSerializer LEGACY =
             LegacyComponentSerializer.legacyAmpersand();
@@ -162,7 +165,7 @@ public class VanillaDialogHandler implements DialogHandler {
                 if (p != null && pendingAuth.contains(uuid)) {
                     openNativeDialog(p, isRegister);
                 }
-            }, 20L);
+            }, DIALOG_RESHOW_DELAY_TICKS);
 
         Dialog dialog = Dialog.create(factory -> factory.empty()
                 .base(DialogBase.builder(title)
