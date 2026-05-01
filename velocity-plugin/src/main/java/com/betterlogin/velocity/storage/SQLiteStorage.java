@@ -53,18 +53,20 @@ public class SQLiteStorage implements AuthStorage {
     public void init() {
         try {
             Files.createDirectories(dataDirectory);
-            // The SQLite JDBC driver is shaded and relocated into the plugin JAR.
+            // The SQLite JDBC driver is shaded into the plugin JAR.
             // Velocity uses isolated plugin classloaders, so DriverManager's service-loader
-            // cannot see the relocated driver. We must load and invoke the driver directly
+            // cannot see the driver. We must load and invoke the driver directly
             // instead of going through DriverManager.getConnection(), which would fail with
             // "No suitable driver found" even though Class.forName() succeeds.
+            // NOTE: org.sqlite is NOT relocated in the shadow JAR because the native library
+            // has JNI function names bound to the original 'org.sqlite' package name.
             java.sql.Driver drv;
             try {
-                drv = (java.sql.Driver) Class.forName("com.betterlogin.libs.sqlite.JDBC")
+                drv = (java.sql.Driver) Class.forName("org.sqlite.JDBC")
                         .getDeclaredConstructor()
                         .newInstance();
             } catch (ReflectiveOperationException e) {
-                throw new RuntimeException("Failed to instantiate shaded SQLite JDBC driver. "
+                throw new RuntimeException("Failed to instantiate SQLite JDBC driver. "
                         + "Ensure the plugin JAR was built with the shadowJar task.", e);
             }
             String url = "jdbc:sqlite:" + dataDirectory.resolve("auth.db").toAbsolutePath();

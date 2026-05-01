@@ -1,7 +1,7 @@
 name: BetterLoginBridge
 version: '1.0.0'
 main: com.betterlogin.paper.BetterLoginBridge
-api-version: '1.21'
+api-version: '1.21.6'
 description: Paper bridge for the BetterLogin Velocity authentication plugin
 authors:
   - BetterLogin
