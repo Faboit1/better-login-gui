@@ -35,6 +35,9 @@ public class LoginListener {
     private static final LegacyComponentSerializer LEGACY =
         LegacyComponentSerializer.legacyAmpersand();
 
+    /** Delay before sending plugin messages to let Velocity populate getCurrentServer(). */
+    private static final long PLUGIN_MESSAGE_DELAY_MS = 50L;
+
     public LoginListener(ProxyServer proxy, Object pluginInstance, AuthManager authManager,
                          BridgeMessenger bridge, PluginConfig config, Logger logger) {
         this.proxy          = proxy;
@@ -111,30 +114,22 @@ public class LoginListener {
                     state);
         }
 
-        if (state == AuthState.PREMIUM || state == AuthState.SESSION_VALID || state == AuthState.AUTHENTICATED) {
-            // Notify Paper of a successful auto-login so it can run welcome commands
-            bridge.sendAuthSuccess(event.getPlayer());
-            return;
-        }
+        // Delay by 50 ms so Velocity finishes updating getCurrentServer() before we try to
+        // send the plugin message. Sending immediately causes "player has no current server".
+        proxy.getScheduler().buildTask(pluginInstance, () -> {
+            // Bail out if the player disconnected during the delay
+            if (!event.getPlayer().isActive() || authManager.getState(uuid) == AuthState.UNKNOWN) return;
 
-        // Start auth dialog on the Paper server
-        boolean isNewPlayer = authManager.isNewPlayer(uuid);
-        bridge.sendAuthRequired(event.getPlayer(), isNewPlayer);
+            if (state == AuthState.PREMIUM || state == AuthState.SESSION_VALID || state == AuthState.AUTHENTICATED) {
+                // Notify Paper of a successful auto-login so it can run welcome commands
+                bridge.sendAuthSuccess(event.getPlayer());
+                return;
+            }
 
-        // Schedule a timeout kick if the player does not authenticate in time
-        long timeout = config.getAuthTimeoutSeconds();
-        if (timeout > 0) {
-            proxy.getScheduler().buildTask(pluginInstance,
-                () -> {
-                    AuthState current = authManager.getState(uuid);
-                    if (current == AuthState.PENDING_DIALOG || current == AuthState.PENDING_LOGIN
-                            || current == AuthState.PENDING_REGISTER) {
-                        event.getPlayer().disconnect(LEGACY.deserialize(config.getMsgTimeout()));
-                    }
-                })
-                .delay(timeout, TimeUnit.SECONDS)
-                .schedule();
-        }
+            // Start auth dialog on the Paper server
+            boolean isNewPlayer = authManager.isNewPlayer(uuid);
+            bridge.sendAuthRequired(event.getPlayer(), isNewPlayer);
+        }).delay(PLUGIN_MESSAGE_DELAY_MS, TimeUnit.MILLISECONDS).schedule();
     }
 
     @Subscribe
