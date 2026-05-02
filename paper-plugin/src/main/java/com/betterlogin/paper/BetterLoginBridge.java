@@ -1,10 +1,10 @@
 package com.betterlogin.paper;
 
 import com.betterlogin.paper.command.BetterLoginTestCommand;
-import com.betterlogin.paper.command.FallbackAuthCommand;
 import com.betterlogin.paper.config.PaperConfig;
 import com.betterlogin.paper.dialog.DialogHandler;
 import com.betterlogin.paper.dialog.VanillaDialogHandler;
+import com.betterlogin.paper.listener.AuthMeListener;
 import com.betterlogin.paper.listener.AuthPlayerListener;
 import com.betterlogin.paper.listener.BridgeMessageListener;
 import net.kyori.adventure.bossbar.BossBar;
@@ -54,7 +54,7 @@ public class BetterLoginBridge extends JavaPlugin {
     /**
      * Tracks whether a fallback-mode player (old client, no native dialog) is
      * in the registration flow (true) or login flow (false).
-     * Used by {@link com.betterlogin.paper.command.FallbackAuthCommand}.
+     * Cleared by {@link com.betterlogin.paper.listener.AuthMeListener} on auth success.
      */
     private final Map<UUID, Boolean> pendingRegistration = new ConcurrentHashMap<>();
 
@@ -106,11 +106,15 @@ public class BetterLoginBridge extends JavaPlugin {
         getCommand("betterlogintest").setExecutor(testCmd);
         getCommand("betterlogintest").setTabCompleter(testCmd);
 
-        // Fallback /login and /register commands for older clients
-        FallbackAuthCommand loginCmd    = new FallbackAuthCommand(this, false);
-        FallbackAuthCommand registerCmd = new FallbackAuthCommand(this, true);
-        getCommand("login").setExecutor(loginCmd);
-        getCommand("register").setExecutor(registerCmd);
+        // Register AuthMe event listener to detect when authentication succeeds or fails.
+        // AuthMe is a soft-depend; if it is not installed the listener is simply not registered.
+        if (getServer().getPluginManager().isPluginEnabled("AuthMe")) {
+            getServer().getPluginManager().registerEvents(new AuthMeListener(this), this);
+            getLogger().info("AuthMe detected – BetterLogin will delegate authentication to AuthMe.");
+        } else {
+            getLogger().warning("AuthMe is not installed! BetterLogin requires AuthMe to handle "
+                    + "credential verification. Players will not be able to authenticate.");
+        }
 
         getLogger().info("BetterLogin bridge enabled.");
     }

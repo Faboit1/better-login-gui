@@ -9,6 +9,8 @@ base {
 repositories {
     // ViaVersion API (for soft-depend client protocol version detection)
     maven { url = 'https://repo.viaversion.com' }
+    // AuthMe API (soft-depend – only used at compile time for event classes)
+    maven { url = 'https://repo.codemc.io/repository/maven-snapshots/' }
 }
 
 dependencies {
@@ -19,6 +21,10 @@ dependencies {
     // Soft-depend: used only to detect client protocol version so we can fall back
     // to the /login chat command for clients older than 1.21.6 (no dialog support).
     compileOnly 'com.viaversion:viaversion-api:4.9.2'
+
+    // Soft-depend: AuthMe handles the actual authentication; we compile against its
+    // API only to register event listeners (LoginEvent, RegisterEvent, FailedLoginEvent).
+    compileOnly 'fr.xephi.authme:authme:5.6.0-SNAPSHOT'
 
     implementation 'org.spongepowered:configurate-yaml:4.1.2'
 }

@@ -87,9 +87,8 @@ public class BetterLoginCommand implements SimpleCommand {
             for (Player p : online) {
                 AuthState state = auth.getState(p.getUniqueId());
                 NamedTextColor color = switch (state) {
-                    case AUTHENTICATED, PREMIUM, SESSION_VALID -> NamedTextColor.GREEN;
-                    case PENDING_DIALOG, PENDING_LOGIN, PENDING_REGISTER -> NamedTextColor.YELLOW;
-                    case KICKED -> NamedTextColor.RED;
+                    case AUTHENTICATED, PREMIUM -> NamedTextColor.GREEN;
+                    case PENDING_DIALOG -> NamedTextColor.YELLOW;
                     default -> NamedTextColor.GRAY;
                 };
                 source.sendMessage(Component.text("  " + p.getUsername() + " -> ", NamedTextColor.WHITE)

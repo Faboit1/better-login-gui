@@ -82,8 +82,8 @@ public class LoginListener {
             logger.info("[DEBUG] ChooseInitialServer: player={} state={}", event.getPlayer().getUsername(), state);
         }
 
-        // Premium and session-valid players skip auth and go directly to main
-        if (state == AuthState.PREMIUM || state == AuthState.SESSION_VALID) {
+        // Premium and already-authenticated players skip auth and go directly to main
+        if (state == AuthState.PREMIUM || state == AuthState.AUTHENTICATED) {
             routeToMain(event);
             return;
         }
@@ -124,15 +124,15 @@ public class LoginListener {
             // Skip if PLAYER_READY already triggered an immediate send
             if (bridge.wasAuthTriggered(uuid)) return;
 
-            if (state == AuthState.PREMIUM || state == AuthState.SESSION_VALID || state == AuthState.AUTHENTICATED) {
+            if (state == AuthState.PREMIUM || state == AuthState.AUTHENTICATED) {
                 // Notify Paper of a successful auto-login so it can run welcome commands
                 bridge.sendAuthSuccess(event.getPlayer());
                 return;
             }
 
-            // Start auth dialog on the Paper server
-            boolean isNewPlayer = authManager.isNewPlayer(uuid);
-            bridge.sendAuthRequired(event.getPlayer(), isNewPlayer);
+            // Start auth dialog on the Paper server; AuthMe is the source of truth for
+            // whether the player is registered (sent via PLAYER_READY from Paper).
+            bridge.sendAuthRequired(event.getPlayer(), false);
         }).delay(PLUGIN_MESSAGE_DELAY_MS, TimeUnit.MILLISECONDS).schedule();
     }
 

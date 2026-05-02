@@ -20,7 +20,6 @@ import java.util.UUID;
  * <pre>
  * AUTH_REQUIRED\0{uuid}\0{isNewPlayer}  – queue dialog for player (shown on or after PlayerJoinEvent)
  * AUTH_SUCCESS\0{uuid}                  – mark player as authenticated (premium / session)
- * AUTH_RESULT\0{uuid}\0{success}\0{msg} – outcome of a submitted password
  * RUN_COMMANDS\0{uuid}\0{username}\0... – execute console commands
  * </pre>
  *
@@ -69,7 +68,6 @@ public class BridgeMessageListener implements PluginMessageListener {
         switch (type) {
             case "AUTH_REQUIRED" -> handleAuthRequired(parts, player);
             case "AUTH_SUCCESS"  -> handleAuthSuccess(parts, player);
-            case "AUTH_RESULT"   -> handleAuthResult(parts, player);
             case "RUN_COMMANDS"  -> handleRunCommands(parts);
             default -> plugin.getLogger().warning("Unknown bridge message type: " + type);
         }
@@ -121,34 +119,6 @@ public class BridgeMessageListener implements PluginMessageListener {
         PaperConfig cfg = plugin.getPaperConfig();
         String welcomeMsg = cfg.getWelcomeMessage().replace("{player}", player.getName());
         player.sendMessage(LEGACY.deserialize(welcomeMsg));
-    }
-
-    private void handleAuthResult(String[] parts, Player player) {
-        if (parts.length < 4) return;
-        boolean success = Boolean.parseBoolean(parts[2]);
-        String message  = parts[3];
-
-        if (plugin.getConfig().getBoolean("debug", false)) {
-            plugin.getLogger().info("[DEBUG] AUTH_RESULT: player=" + player.getName() + " success=" + success);
-        }
-
-        player.sendMessage(LEGACY.deserialize(message));
-
-        if (success) {
-            pendingAuth.remove(player.getUniqueId());
-            plugin.getPendingRegistration().remove(player.getUniqueId());
-            plugin.removeBossBar(player.getUniqueId());
-            player.clearTitle();
-        } else {
-            // Re-show dialog on main thread (1 s delay) so the player can try again.
-            // For fallback (old client) players, showLoginDialog falls back to the
-            // text prompt again, which re-adds them to pendingRegistration.
-            plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-                if (player.isOnline() && pendingAuth.contains(player.getUniqueId())) {
-                    dialogHandler.showLoginDialog(player);
-                }
-            }, 20L);
-        }
     }
 
     private void handleRunCommands(String[] parts) {

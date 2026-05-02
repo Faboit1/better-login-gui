@@ -5,8 +5,6 @@ import com.betterlogin.velocity.bridge.BridgeMessenger;
 import com.betterlogin.velocity.command.BetterLoginCommand;
 import com.betterlogin.velocity.config.PluginConfig;
 import com.betterlogin.velocity.listener.LoginListener;
-import com.betterlogin.velocity.storage.AuthStorage;
-import com.betterlogin.velocity.storage.SQLiteStorage;
 import com.google.inject.Inject;
 import com.velocitypowered.api.command.CommandMeta;
 import com.velocitypowered.api.event.Subscribe;
@@ -37,7 +35,6 @@ public class BetterLoginPlugin {
     private final Path dataDirectory;
 
     private PluginConfig config;
-    private AuthStorage storage;
     private AuthManager authManager;
     private BridgeMessenger bridgeMessenger;
 
@@ -52,10 +49,8 @@ public class BetterLoginPlugin {
     public void onProxyInitialize(ProxyInitializeEvent event) {
         try {
             this.config = new PluginConfig(dataDirectory, logger);
-            this.storage = new SQLiteStorage(dataDirectory, logger);
-            this.storage.init();
-            this.authManager = new AuthManager(storage, config, logger);
-            this.bridgeMessenger = new BridgeMessenger(proxy, authManager, storage, config, logger);
+            this.authManager = new AuthManager(config, logger);
+            this.bridgeMessenger = new BridgeMessenger(proxy, authManager, config, logger);
 
             proxy.getChannelRegistrar().register(BRIDGE_CHANNEL);
             proxy.getEventManager().register(this, new LoginListener(proxy, this, authManager, bridgeMessenger, config, logger));
@@ -77,9 +72,6 @@ public class BetterLoginPlugin {
 
     @Subscribe
     public void onProxyShutdown(ProxyShutdownEvent event) {
-        if (storage != null) {
-            storage.close();
-        }
         logger.info("BetterLogin shut down.");
     }
 
