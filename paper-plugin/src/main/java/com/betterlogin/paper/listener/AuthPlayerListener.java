@@ -47,22 +47,52 @@ public class AuthPlayerListener implements Listener {
     }
 
     /**
-     * Timing-fix handler: if Velocity sent AUTH_REQUIRED before this player fully spawned,
-     * the request is held in {@code pendingDialogRequests} and shown here after the player
-     * is guaranteed to be in the world.
+     * Timing-fix handler: Velocity sends AUTH_REQUIRED ~50 ms after ServerConnectedEvent, but
+     * Paper's PluginMessageListener only delivers messages once the player is fully in-game.
+     * The message was silently dropped before PlayerJoinEvent fired.
+     *
+     * <p><b>New flow (two-phase handshake):</b>
+     * <ol>
+     *   <li>Player joins Paper → this handler fires.</li>
+     *   <li>If AUTH_REQUIRED already arrived (legacy/fallback path), handle it immediately.</li>
+     *   <li>Otherwise, send {@code PLAYER_READY} to Velocity so it knows the player is ready.
+     *       Velocity will respond with {@code AUTH_REQUIRED} or {@code AUTH_SUCCESS} and the
+     *       plugin message will now arrive while the player is definitely online.</li>
+     * </ol>
+     * </p>
      */
     @EventHandler(priority = EventPriority.MONITOR)
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
         UUID uuid = player.getUniqueId();
 
+        // Legacy fallback: AUTH_REQUIRED arrived before PlayerJoinEvent (e.g. very fast server)
         Boolean isNewPlayer = plugin.getPendingDialogRequests().remove(uuid);
-        if (isNewPlayer == null) return; // No pending request – normal join
+        if (isNewPlayer != null) {
+            final boolean np = isNewPlayer;
+            plugin.getServer().getScheduler().runTaskLater(plugin,
+                    () -> { if (player.isOnline()) plugin.showAuthEffectsAndDialog(player, np); },
+                    5L);
+            return;
+        }
 
-        // Run 1 tick later so the client finishes loading the world before the dialog appears
-        plugin.getServer().getScheduler().runTaskLater(plugin,
-                () -> { if (player.isOnline()) plugin.showAuthEffectsAndDialog(player, isNewPlayer); },
-                1L);
+        // Primary path: tell Velocity we are ready so it sends AUTH_REQUIRED/AUTH_SUCCESS now.
+        // Include AuthMe registration status so Velocity knows login vs register.
+        boolean authMeRegistered = plugin.isAuthMeRegistered(player);
+        final byte[] payload = (BetterLoginBridge.MSG_PLAYER_READY
+                + BetterLoginBridge.SEP + uuid
+                + BetterLoginBridge.SEP + authMeRegistered)
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8);
+
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            if (player.isOnline()) {
+                player.sendPluginMessage(plugin, BetterLoginBridge.CHANNEL, payload);
+                if (plugin.getConfig().getBoolean("debug", false)) {
+                    plugin.getLogger().info("[DEBUG] → Velocity PLAYER_READY: player="
+                            + player.getName() + " authMeRegistered=" + authMeRegistered);
+                }
+            }
+        }, 1L);
     }
 
     @EventHandler(priority = EventPriority.LOWEST)

@@ -36,6 +36,10 @@ import java.util.concurrent.ConcurrentHashMap;
 public class BetterLoginBridge extends JavaPlugin {
 
     public static final String CHANNEL = "betterlogin:bridge";
+    /** Null-byte separator used in plugin-message payloads. */
+    public static final String SEP = "\0";
+    /** Outbound message type sent from Paper to Velocity when the player is fully in-game. */
+    public static final String MSG_PLAYER_READY = "PLAYER_READY";
     private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.legacyAmpersand();
 
     /** UUIDs of players currently inside the authentication flow. */
@@ -59,6 +63,25 @@ public class BetterLoginBridge extends JavaPlugin {
 
     private PaperConfig paperConfig;
     private DialogHandler dialogHandler;
+
+    /**
+     * Returns {@code true} if AuthMe is installed and considers this player registered.
+     * Uses reflection so there is no compile-time hard dependency on AuthMe.
+     */
+    public boolean isAuthMeRegistered(Player player) {
+        if (!getServer().getPluginManager().isPluginEnabled("AuthMe")) return false;
+        try {
+            Class<?> apiClass = Class.forName("fr.xephi.authme.api.v3.AuthMeApi");
+            Object api = apiClass.getMethod("getInstance").invoke(null);
+            if (api == null) return false;
+            return (boolean) apiClass.getMethod("isRegistered", String.class).invoke(api, player.getName());
+        } catch (Exception e) {
+            if (getConfig().getBoolean("debug", false)) {
+                getLogger().warning("[DEBUG] AuthMe API call failed for " + player.getName() + ": " + e.getMessage());
+            }
+            return false;
+        }
+    }
 
     @Override
     public void onEnable() {

@@ -36,7 +36,7 @@ public class LoginListener {
         LegacyComponentSerializer.legacyAmpersand();
 
     /** Delay before sending plugin messages to let Velocity populate getCurrentServer(). */
-    private static final long PLUGIN_MESSAGE_DELAY_MS = 50L;
+    private static final long PLUGIN_MESSAGE_DELAY_MS = 500L;
 
     public LoginListener(ProxyServer proxy, Object pluginInstance, AuthManager authManager,
                          BridgeMessenger bridge, PluginConfig config, Logger logger) {
@@ -114,11 +114,15 @@ public class LoginListener {
                     state);
         }
 
-        // Delay by 50 ms so Velocity finishes updating getCurrentServer() before we try to
-        // send the plugin message. Sending immediately causes "player has no current server".
+        // Delay by 500 ms as a fallback for servers where the Paper bridge plugin is not
+        // installed (PLAYER_READY would never arrive). If the Paper plugin IS installed it
+        // will send PLAYER_READY on PlayerJoinEvent and BridgeMessenger will immediately
+        // respond – bridge.wasAuthTriggered() will then be true before this timer fires.
         proxy.getScheduler().buildTask(pluginInstance, () -> {
             // Bail out if the player disconnected during the delay
             if (!event.getPlayer().isActive() || authManager.getState(uuid) == AuthState.UNKNOWN) return;
+            // Skip if PLAYER_READY already triggered an immediate send
+            if (bridge.wasAuthTriggered(uuid)) return;
 
             if (state == AuthState.PREMIUM || state == AuthState.SESSION_VALID || state == AuthState.AUTHENTICATED) {
                 // Notify Paper of a successful auto-login so it can run welcome commands
@@ -134,19 +138,47 @@ public class LoginListener {
 
     @Subscribe
     public void onDisconnect(DisconnectEvent event) {
-        authManager.onPlayerDisconnect(event.getPlayer().getUniqueId());
+        UUID uuid = event.getPlayer().getUniqueId();
+        authManager.onPlayerDisconnect(uuid);
+        bridge.clearAuthTrigger(uuid);
     }
 
     // ------------------------------------------------------------------
 
+    /**
+     * Routes the player to the main backend server.
+     *
+     * <p>If {@code servers.main} is configured and the server exists, it is used directly.
+     * Otherwise the method falls back to Velocity's configured
+     * {@code attempt-connection-order} list (from velocity.toml), picking the first
+     * server that is registered – so no extra configuration is needed.</p>
+     */
     private void routeToMain(PlayerChooseInitialServerEvent event) {
         String mainName = config.getMainServer();
-        Optional<RegisteredServer> main = proxy.getServer(mainName);
-        if (main.isPresent()) {
-            event.setInitialServer(main.get());
-        } else {
-            logger.error("Main server '{}' not found in Velocity config!", mainName);
+
+        // Try the explicitly-configured main server first
+        if (mainName != null && !mainName.isBlank()) {
+            Optional<RegisteredServer> main = proxy.getServer(mainName);
+            if (main.isPresent()) {
+                event.setInitialServer(main.get());
+                return;
+            }
+            logger.warn("Configured main server '{}' not found in Velocity – falling back to attempt order", mainName);
         }
+
+        // Fall back to Velocity's own attempt-connection-order list
+        for (String name : proxy.getConfiguration().getAttemptConnectionOrder()) {
+            Optional<RegisteredServer> server = proxy.getServer(name);
+            if (server.isPresent()) {
+                if (config.isDebug()) {
+                    logger.info("[DEBUG] routeToMain: using '{}' from Velocity attempt order", name);
+                }
+                event.setInitialServer(server.get());
+                return;
+            }
+        }
+
+        logger.error("No suitable main server found in Velocity attempt order – player will be disconnected!");
     }
 
     /** Kick a player with a coloured message. */

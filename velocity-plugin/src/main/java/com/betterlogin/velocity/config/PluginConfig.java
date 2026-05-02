@@ -57,7 +57,7 @@ public class PluginConfig {
             YamlConfigurationLoader loader = YamlConfigurationLoader.builder().path(configPath).build();
             CommentedConfigurationNode root = loader.load();
 
-            mainServer          = root.node("servers", "main").getString("main");
+            mainServer          = root.node("servers", "main").getString("");
             limboServer         = root.node("servers", "limbo").getString("");
 
             debug               = root.node("debug").getBoolean(false);

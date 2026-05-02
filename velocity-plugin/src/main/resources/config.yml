@@ -5,8 +5,10 @@ debug: false
 
 # Names of backend servers as defined in velocity.toml
 servers:
-  # The main game server players land on after authenticating
-  main: "main"
+  # The main game server players land on after authenticating.
+  # Leave blank (or remove this line) to automatically use the first server in
+  # Velocity's attempt-connection-order list – no manual configuration needed.
+  main: ""
   # Optional: a lightweight limbo/lobby server for unauthenticated players.
   # Leave blank to use the main server directly (Paper bridge will freeze the player).
   limbo: ""
