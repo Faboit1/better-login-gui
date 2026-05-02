@@ -25,7 +25,5 @@ subprojects {
             // XML for packages it doesn't host, which Gradle's SAX parser rejects.
             content { includeGroup 'com.velocitypowered' }
         }
-        maven { url = 'https://repo.codemc.io/repository/maven-releases/' }
-        maven { url = 'https://jitpack.io' }
     }
 }

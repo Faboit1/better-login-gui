@@ -109,8 +109,12 @@ public class BetterLoginBridge extends JavaPlugin {
         // Register AuthMe event listener to detect when authentication succeeds or fails.
         // AuthMe is a soft-depend; if it is not installed the listener is simply not registered.
         if (getServer().getPluginManager().isPluginEnabled("AuthMe")) {
-            getServer().getPluginManager().registerEvents(new AuthMeListener(this), this);
-            getLogger().info("AuthMe detected – BetterLogin will delegate authentication to AuthMe.");
+            if (AuthMeListener.register(this)) {
+                getLogger().info("AuthMe detected – BetterLogin will delegate authentication to AuthMe.");
+            } else {
+                getLogger().warning("AuthMe is installed but its event classes could not be found. "
+                        + "Authentication events will not be processed.");
+            }
         } else {
             getLogger().warning("AuthMe is not installed! BetterLogin requires AuthMe to handle "
                     + "credential verification. Players will not be able to authenticate.");

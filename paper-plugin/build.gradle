@@ -6,11 +6,6 @@ base {
     archivesName = 'BetterLogin-Bridge'
 }
 
-repositories {
-    // AuthMe API (soft-depend – only used at compile time for event classes)
-    maven { url = 'https://repo.codemc.io/repository/maven-snapshots/' }
-}
-
 dependencies {
     // Target the server version the admin is running; dialogs require Paper 1.21.6+.
     // Bump this when you upgrade the server – the code has no version-specific NMS calls.
@@ -20,9 +15,10 @@ dependencies {
     // Its POM file contains a DOCTYPE declaration that Gradle's XML parser rejects.
     // ViaVersion API is accessed via reflection at runtime (soft-depend only).
 
-    // Soft-depend: AuthMe handles the actual authentication; we compile against its
-    // API only to register event listeners (LoginEvent, RegisterEvent, FailedLoginEvent).
-    compileOnly 'fr.xephi.authme:authme:5.6.0-SNAPSHOT'
+    // Note: AuthMe is intentionally NOT listed as a compile dependency.
+    // The artifact is only available as a SNAPSHOT and not reliably hosted on any
+    // public Maven repo. AuthMe events are subscribed via Bukkit's reflection-based
+    // PluginManager.registerEvent() API at runtime (soft-depend only).
 
     implementation 'org.spongepowered:configurate-yaml:4.1.2'
 }
