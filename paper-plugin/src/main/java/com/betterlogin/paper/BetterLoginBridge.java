@@ -76,6 +76,9 @@ public class BetterLoginBridge extends JavaPlugin {
             if (api == null) return false;
             return (boolean) apiClass.getMethod("isRegistered", String.class).invoke(api, player.getName());
         } catch (Exception e) {
+            if (getConfig().getBoolean("debug", false)) {
+                getLogger().warning("[DEBUG] AuthMe API call failed for " + player.getName() + ": " + e.getMessage());
+            }
             return false;
         }
     }

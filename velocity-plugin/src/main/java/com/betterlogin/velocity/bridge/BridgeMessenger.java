@@ -245,7 +245,7 @@ public class BridgeMessenger {
         } else {
             // If AuthMe says the player is registered, always show login dialog.
             // Otherwise fall back to our own DB check.
-            boolean isNewPlayer = authMeRegistered ? false : authManager.isNewPlayer(uuid);
+            boolean isNewPlayer = !authMeRegistered && authManager.isNewPlayer(uuid);
             sendAuthRequired(player, isNewPlayer);
         }
     }
