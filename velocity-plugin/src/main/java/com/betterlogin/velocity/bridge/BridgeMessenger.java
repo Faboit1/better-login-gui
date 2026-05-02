@@ -27,6 +27,7 @@ import static com.betterlogin.velocity.BetterLoginPlugin.BRIDGE_CHANNEL;
  * Velocity  → Paper : AUTH_REQUIRED\0{uuid}\0{isNewPlayer}
  * Velocity  → Paper : AUTH_SUCCESS\0{uuid}
  * Velocity  → Paper : RUN_COMMANDS\0{uuid}\0{username}\0{cmd1}\0{cmd2}...
+ * Paper     → Velocity : PLAYER_READY\0{uuid}\0{authMeRegistered}   (triggers AUTH_REQUIRED/AUTH_SUCCESS)
  * Paper     → Velocity : AUTH_ATTEMPT\0{uuid}\0{username}\0{isRegister}\0{password}
  * </pre>
  */
@@ -39,6 +40,14 @@ public class BridgeMessenger {
     private final Logger logger;
 
     private static final String SEP = "\0";
+
+    /**
+     * Tracks players for whom an AUTH_REQUIRED or AUTH_SUCCESS has already been sent
+     * during the current session.  Used to prevent the 500 ms fallback timer from
+     * sending a duplicate message after PLAYER_READY already triggered an immediate send.
+     */
+    private final java.util.Set<UUID> authTriggerSent =
+            java.util.Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<>());
 
     public BridgeMessenger(ProxyServer proxy, AuthManager authManager, AuthStorage storage,
                            PluginConfig config, Logger logger) {
@@ -55,6 +64,7 @@ public class BridgeMessenger {
 
     /** Tell the Paper bridge to start the auth dialog for this player. */
     public void sendAuthRequired(Player player, boolean isNewPlayer) {
+        authTriggerSent.add(player.getUniqueId());
         String payload = String.join(SEP,
             "AUTH_REQUIRED",
             player.getUniqueId().toString(),
@@ -69,6 +79,7 @@ public class BridgeMessenger {
 
     /** Notify Paper that this player has been auto-authenticated (premium or valid session). */
     public void sendAuthSuccess(Player player) {
+        authTriggerSent.add(player.getUniqueId());
         String payload = String.join(SEP,
             "AUTH_SUCCESS",
             player.getUniqueId().toString()
@@ -78,6 +89,19 @@ public class BridgeMessenger {
         }
         send(player, payload);
         runPostAuthCommands(player, false);
+    }
+
+    /**
+     * Returns {@code true} if an auth message has already been sent to Paper for this player
+     * in the current session.  Used by the fallback timer in LoginListener to avoid duplicates.
+     */
+    public boolean wasAuthTriggered(UUID uuid) {
+        return authTriggerSent.contains(uuid);
+    }
+
+    /** Called on player disconnect to free the tracking entry. */
+    public void clearAuthTrigger(UUID uuid) {
+        authTriggerSent.remove(uuid);
     }
 
     /** Tell Paper to execute a list of console commands after authentication. */
@@ -116,6 +140,8 @@ public class BridgeMessenger {
         }
         if ("AUTH_ATTEMPT".equals(type)) {
             handleAuthAttempt(parts);
+        } else if ("PLAYER_READY".equals(type)) {
+            handlePlayerReady(parts);
         }
     }
 
@@ -176,6 +202,51 @@ public class BridgeMessenger {
                 logger.info("[DEBUG] AUTH_ATTEMPT failure: player={} attempts={}", username, authManager.getFailedAttempts(uuid));
             }
             sendAuthResult(player, false, config.getMsgLoginFailed());
+        }
+    }
+
+    /**
+     * Paper sends PLAYER_READY once the player is fully in-game (PlayerJoinEvent has fired).
+     *
+     * <p>Format: {@code PLAYER_READY\0{uuid}\0{authMeRegistered}}</p>
+     *
+     * <p>This is the primary trigger for sending AUTH_REQUIRED or AUTH_SUCCESS to Paper.
+     * Because this message is sent FROM Paper, it can only arrive after the player is
+     * fully online, so there is no timing race.</p>
+     *
+     * @param authMeRegistered {@code true} if AuthMe (on Paper) says the player already has
+     *                         an account; used to show the correct login vs register dialog.
+     */
+    private void handlePlayerReady(String[] parts) {
+        // PLAYER_READY\0{uuid}\0{authMeRegistered}
+        if (parts.length < 2) return;
+        UUID uuid;
+        try {
+            uuid = UUID.fromString(parts[1]);
+        } catch (IllegalArgumentException e) {
+            logger.warn("Invalid UUID in PLAYER_READY: {}", parts[1]);
+            return;
+        }
+        boolean authMeRegistered = parts.length >= 3 && Boolean.parseBoolean(parts[2]);
+
+        Optional<Player> optPlayer = proxy.getPlayer(uuid);
+        if (optPlayer.isEmpty()) return;
+        Player player = optPlayer.get();
+
+        if (config.isDebug()) {
+            logger.info("[DEBUG] ← Paper PLAYER_READY: player={} authMeRegistered={}",
+                    player.getUsername(), authMeRegistered);
+        }
+
+        AuthState state = authManager.getState(uuid);
+        if (state == AuthState.PREMIUM || state == AuthState.SESSION_VALID
+                || state == AuthState.AUTHENTICATED) {
+            sendAuthSuccess(player);
+        } else {
+            // If AuthMe says the player is registered, always show login dialog.
+            // Otherwise fall back to our own DB check.
+            boolean isNewPlayer = authMeRegistered ? false : authManager.isNewPlayer(uuid);
+            sendAuthRequired(player, isNewPlayer);
         }
     }
 

@@ -24,14 +24,17 @@ import java.util.UUID;
  * RUN_COMMANDS\0{uuid}\0{username}\0... – execute console commands
  * </pre>
  *
- * <h2>Timing note</h2>
- * <p>Velocity fires {@code ServerConnectedEvent} and immediately sends {@code AUTH_REQUIRED}.
- * At that moment Paper may not have fully spawned the player (i.e. {@code PlayerJoinEvent}
- * has not yet fired), which means {@code player.showDialog()} would silently fail.  To avoid
- * this, {@code handleAuthRequired} stores the request in
- * {@link BetterLoginBridge#getPendingDialogRequests()}.  If the player is already online the
- * dialog is shown immediately on the next tick; otherwise
- * {@link AuthPlayerListener#onJoin} picks it up when the player spawns.</p>
+ * <h2>Timing note (two-phase handshake)</h2>
+ * <p>Previously, Velocity sent {@code AUTH_REQUIRED} with a fixed 50 ms delay after
+ * {@code ServerConnectedEvent}.  Paper's {@link PluginMessageListener} only delivers
+ * plugin messages once the player is fully in-game, so the message was silently dropped
+ * before {@code PlayerJoinEvent} fired.</p>
+ *
+ * <p>The fix: {@link AuthPlayerListener#onJoin} sends {@code PLAYER_READY} to Velocity
+ * as soon as {@code PlayerJoinEvent} fires.  Velocity responds <em>immediately</em> with
+ * {@code AUTH_REQUIRED} or {@code AUTH_SUCCESS}, which now arrives while the player is
+ * definitely online.  A 500 ms fallback timer on the Velocity side handles the case
+ * where the Paper bridge plugin is not installed.</p>
  */
 public class BridgeMessageListener implements PluginMessageListener {
 
