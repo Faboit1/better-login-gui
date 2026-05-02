@@ -109,14 +109,20 @@ public class VanillaDialogHandler implements DialogHandler {
      * native dialog screen.
      *
      * <p>If ViaVersion is present, the actual client protocol version is compared
-     * against {@link #DIALOG_MIN_PROTOCOL}.  Without ViaVersion (or if the look-up
-     * fails), we assume the client is running the same version as the server.</p>
+     * against {@link #DIALOG_MIN_PROTOCOL} using reflection (ViaVersion is not a
+     * compile-time dependency due to its POM having DOCTYPE declarations that some
+     * XML parsers reject).  Without ViaVersion (or if the reflection call fails),
+     * we assume the client is running the same version as the server.</p>
      */
     private boolean supportsDialogs(Player player) {
         if (plugin.getServer().getPluginManager().isPluginEnabled("ViaVersion")) {
             try {
-                int clientProtocol = com.viaversion.viaversion.api.Via.getAPI()
-                        .getPlayerVersion(player.getUniqueId());
+                // Equivalent to: com.viaversion.viaversion.api.Via.getAPI().getPlayerVersion(uuid)
+                Class<?> viaClass = Class.forName("com.viaversion.viaversion.api.Via");
+                Object api = viaClass.getMethod("getAPI").invoke(null);
+                int clientProtocol = (int) api.getClass()
+                        .getMethod("getPlayerVersion", java.util.UUID.class)
+                        .invoke(api, player.getUniqueId());
                 return clientProtocol >= DIALOG_MIN_PROTOCOL;
             } catch (Exception ignored) {
                 // ViaVersion API call failed – fall through and assume support
