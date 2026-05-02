@@ -6,19 +6,19 @@ base {
     archivesName = 'BetterLogin-Bridge'
 }
 
-repositories {
-    // ViaVersion API (for soft-depend client protocol version detection)
-    maven { url = 'https://repo.viaversion.com' }
-}
-
 dependencies {
     // Target the server version the admin is running; dialogs require Paper 1.21.6+.
     // Bump this when you upgrade the server – the code has no version-specific NMS calls.
     compileOnly 'io.papermc.paper:paper-api:1.21.10-R0.1-SNAPSHOT'
 
-    // Soft-depend: used only to detect client protocol version so we can fall back
-    // to the /login chat command for clients older than 1.21.6 (no dialog support).
-    compileOnly 'com.viaversion:viaversion-api:4.9.2'
+    // Note: ViaVersion is intentionally NOT listed as a compile dependency.
+    // Its POM file contains a DOCTYPE declaration that Gradle's XML parser rejects.
+    // ViaVersion API is accessed via reflection at runtime (soft-depend only).
+
+    // Note: AuthMe is intentionally NOT listed as a compile dependency.
+    // The artifact is only available as a SNAPSHOT and not reliably hosted on any
+    // public Maven repo. AuthMe events are subscribed via Bukkit's reflection-based
+    // PluginManager.registerEvent() API at runtime (soft-depend only).
 
     implementation 'org.spongepowered:configurate-yaml:4.1.2'
 }

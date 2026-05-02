@@ -15,7 +15,6 @@ import net.kyori.adventure.text.event.ClickCallback;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.entity.Player;
 
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -29,10 +28,11 @@ import java.util.UUID;
  *   <li>{@link #supportsDialogs} checks the player's client protocol version via ViaVersion
  *       (soft-depend).  Clients at protocol {@value #DIALOG_MIN_PROTOCOL} or above get the
  *       native Minecraft dialog; older clients receive a plain-text prompt to use
- *       {@code /login} or {@code /register} (handled by {@link com.betterlogin.paper.command.FallbackAuthCommand}).</li>
- *   <li>When a 1.21.6+ player clicks the submit button, the
- *       {@link DialogActionCallback} registered on that button fires and
- *       forwards the response to Velocity.</li>
+ *       {@code /login} or {@code /register}, which AuthMe handles directly.</li>
+ *   <li>When a 1.21.6+ player clicks the submit button, {@link #handleResponse} dispatches
+ *       the appropriate {@code /login} or {@code /register} command as the player; AuthMe
+ *       validates the credentials and fires its own events that {@link com.betterlogin.paper.listener.AuthMeListener}
+ *       listens to.</li>
  * </ol>
  */
 public class VanillaDialogHandler implements DialogHandler {
@@ -46,7 +46,6 @@ public class VanillaDialogHandler implements DialogHandler {
     /** Ticks to wait before re-showing the dialog after Cancel or a failed attempt (1 second = 20 ticks). */
     private static final long DIALOG_RESHOW_DELAY_TICKS = 20L;
 
-    private static final String SEP = "\0";
     private static final LegacyComponentSerializer LEGACY =
             LegacyComponentSerializer.legacyAmpersand();
 
@@ -86,9 +85,19 @@ public class VanillaDialogHandler implements DialogHandler {
 
     @Override
     public void handleResponse(Player player, String input, boolean isRegister) {
-        pendingAuth.remove(player.getUniqueId());
+        // Clear the registration-flow tracking entry; pendingAuth stays set until
+        // AuthMe fires its LoginEvent/RegisterEvent (handled by AuthMeListener).
         plugin.getPendingRegistration().remove(player.getUniqueId());
-        forwardToVelocity(player, input.trim(), isRegister);
+
+        // Dispatch the appropriate AuthMe command on behalf of the player.
+        // AuthMe intercepts /login and /register and handles all credential
+        // verification, storage, and messaging itself.
+        String command = isRegister ? "register " + input.trim() : "login " + input.trim();
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            if (player.isOnline()) {
+                player.performCommand(command);
+            }
+        });
     }
 
     // ------------------------------------------------------------------
@@ -100,14 +109,20 @@ public class VanillaDialogHandler implements DialogHandler {
      * native dialog screen.
      *
      * <p>If ViaVersion is present, the actual client protocol version is compared
-     * against {@link #DIALOG_MIN_PROTOCOL}.  Without ViaVersion (or if the look-up
-     * fails), we assume the client is running the same version as the server.</p>
+     * against {@link #DIALOG_MIN_PROTOCOL} using reflection (ViaVersion is not a
+     * compile-time dependency due to its POM having DOCTYPE declarations that some
+     * XML parsers reject).  Without ViaVersion (or if the reflection call fails),
+     * we assume the client is running the same version as the server.</p>
      */
     private boolean supportsDialogs(Player player) {
         if (plugin.getServer().getPluginManager().isPluginEnabled("ViaVersion")) {
             try {
-                int clientProtocol = com.viaversion.viaversion.api.Via.getAPI()
-                        .getPlayerVersion(player.getUniqueId());
+                // Equivalent to: com.viaversion.viaversion.api.Via.getAPI().getPlayerVersion(uuid)
+                Class<?> viaClass = Class.forName("com.viaversion.viaversion.api.Via");
+                Object api = viaClass.getMethod("getAPI").invoke(null);
+                int clientProtocol = (int) api.getClass()
+                        .getMethod("getPlayerVersion", java.util.UUID.class)
+                        .invoke(api, player.getUniqueId());
                 return clientProtocol >= DIALOG_MIN_PROTOCOL;
             } catch (Exception ignored) {
                 // ViaVersion API call failed – fall through and assume support
@@ -221,15 +236,4 @@ public class VanillaDialogHandler implements DialogHandler {
         player.sendActionBar(LEGACY.deserialize(actionMsg));
     }
 
-    private void forwardToVelocity(Player player, String password, boolean isRegister) {
-        String payload = String.join(SEP,
-                "AUTH_ATTEMPT",
-                player.getUniqueId().toString(),
-                player.getName(),
-                String.valueOf(isRegister),
-                password
-        );
-        player.sendPluginMessage(plugin, BetterLoginBridge.CHANNEL,
-                payload.getBytes(StandardCharsets.UTF_8));
-    }
 }

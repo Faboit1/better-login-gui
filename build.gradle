@@ -19,8 +19,11 @@ subprojects {
     repositories {
         mavenCentral()
         maven { url = 'https://repo.papermc.io/repository/maven-public/' }
-        maven { url = 'https://repo.velocitypowered.com/snapshots/' }
-        maven { url = 'https://repo.codemc.io/repository/maven-releases/' }
-        maven { url = 'https://jitpack.io' }
+        maven {
+            url = 'https://repo.velocitypowered.com/snapshots/'
+            // Restrict to Velocity artifacts only – the repo returns DOCTYPE-containing
+            // XML for packages it doesn't host, which Gradle's SAX parser rejects.
+            content { includeGroup 'com.velocitypowered' }
+        }
     }
 }

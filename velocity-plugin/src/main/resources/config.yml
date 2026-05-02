@@ -13,35 +13,9 @@ servers:
   # Leave blank to use the main server directly (Paper bridge will freeze the player).
   limbo: ""
 
-# Session tokens let cracked players skip re-authentication on reconnect.
-# Premium players are always auto-authenticated and do not use sessions.
-session:
-  enabled: true
-  # How long (in seconds) a session token is valid. Default: 24 h
-  max-age-seconds: 86400
-
-security:
-  # Maximum number of consecutive failed login attempts before the player is kicked
-  max-login-attempts: 5
-  # Seconds until an unauthenticated player is kicked for inactivity
-  auth-timeout-seconds: 60
-  # Minimum allowed password length
-  min-password-length: 6
-
-# Messages – supports legacy colour codes (&a, &c, etc.)
-messages:
-  login-prompt:       "&aPlease log in using the dialog on your screen."
-  register-prompt:    "&aWelcome! Please choose a password using the dialog."
-  login-success:      "&aLogged in successfully. Welcome back!"
-  register-success:   "&aAccount created successfully. Welcome!"
-  login-failed:       "&cWrong password. Please try again."
-  already-registered: "&cYou already have an account. Please log in instead."
-  password-too-short: "&cPassword must be at least {min} characters long."
-  kicked:             "&cToo many failed attempts. You have been disconnected."
-  timeout:            "&cAuthentication timed out. Please reconnect."
-
 # Console commands to run on the Paper backend after a successful event.
 # Placeholders: {player} = username, {uuid} = player UUID
+# Authentication messages are configured in AuthMe's config on the Paper server.
 commands:
   on-login:
     # - "say {player} just logged in!"

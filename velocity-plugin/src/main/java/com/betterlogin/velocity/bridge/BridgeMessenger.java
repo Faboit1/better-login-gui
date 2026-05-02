@@ -3,8 +3,6 @@ package com.betterlogin.velocity.bridge;
 import com.betterlogin.velocity.auth.AuthManager;
 import com.betterlogin.velocity.auth.AuthState;
 import com.betterlogin.velocity.config.PluginConfig;
-import com.betterlogin.velocity.listener.LoginListener;
-import com.betterlogin.velocity.storage.AuthStorage;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.PluginMessageEvent;
 import com.velocitypowered.api.proxy.Player;
@@ -28,14 +26,13 @@ import static com.betterlogin.velocity.BetterLoginPlugin.BRIDGE_CHANNEL;
  * Velocity  → Paper : AUTH_SUCCESS\0{uuid}
  * Velocity  → Paper : RUN_COMMANDS\0{uuid}\0{username}\0{cmd1}\0{cmd2}...
  * Paper     → Velocity : PLAYER_READY\0{uuid}\0{authMeRegistered}   (triggers AUTH_REQUIRED/AUTH_SUCCESS)
- * Paper     → Velocity : AUTH_ATTEMPT\0{uuid}\0{username}\0{isRegister}\0{password}
+ * Paper     → Velocity : AUTH_COMPLETE\0{uuid}\0{wasRegister}       (AuthMe confirmed authentication)
  * </pre>
  */
 public class BridgeMessenger {
 
     private final ProxyServer proxy;
     private final AuthManager authManager;
-    private final AuthStorage storage;
     private final PluginConfig config;
     private final Logger logger;
 
@@ -49,11 +46,10 @@ public class BridgeMessenger {
     private final java.util.Set<UUID> authTriggerSent =
             java.util.Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<>());
 
-    public BridgeMessenger(ProxyServer proxy, AuthManager authManager, AuthStorage storage,
+    public BridgeMessenger(ProxyServer proxy, AuthManager authManager,
                            PluginConfig config, Logger logger) {
         this.proxy       = proxy;
         this.authManager = authManager;
-        this.storage     = storage;
         this.config      = config;
         this.logger      = logger;
     }
@@ -138,71 +134,47 @@ public class BridgeMessenger {
         if (config.isDebug()) {
             logger.info("[DEBUG] ← Paper plugin message: type={} parts={}", type, parts.length);
         }
-        if ("AUTH_ATTEMPT".equals(type)) {
-            handleAuthAttempt(parts);
+        if ("AUTH_COMPLETE".equals(type)) {
+            handleAuthComplete(parts);
         } else if ("PLAYER_READY".equals(type)) {
             handlePlayerReady(parts);
         }
     }
 
-    private void handleAuthAttempt(String[] parts) {
-        // AUTH_ATTEMPT\0{uuid}\0{username}\0{isRegister}\0{password}
-        if (parts.length < 5) {
-            logger.warn("Malformed AUTH_ATTEMPT message – ignoring");
+    /**
+     * Sent by the Paper bridge when AuthMe has successfully authenticated the player.
+     *
+     * <p>Format: {@code AUTH_COMPLETE\0{uuid}\0{wasRegister}}</p>
+     *
+     * <p>This updates the Velocity-side auth state and runs any configured
+     * post-login or post-registration commands on the backend server.</p>
+     */
+    private void handleAuthComplete(String[] parts) {
+        // AUTH_COMPLETE\0{uuid}\0{wasRegister}
+        if (parts.length < 3) {
+            logger.warn("Malformed AUTH_COMPLETE message – ignoring");
             return;
         }
         UUID uuid;
         try {
             uuid = UUID.fromString(parts[1]);
         } catch (IllegalArgumentException e) {
-            logger.warn("Invalid UUID in AUTH_ATTEMPT: {}", parts[1]);
+            logger.warn("Invalid UUID in AUTH_COMPLETE: {}", parts[1]);
             return;
         }
-        String username  = parts[2];
-        boolean register = Boolean.parseBoolean(parts[3]);
-        String password  = parts[4];
+        boolean wasRegister = Boolean.parseBoolean(parts[2]);
 
         Optional<Player> optPlayer = proxy.getPlayer(uuid);
         if (optPlayer.isEmpty()) return;
         Player player = optPlayer.get();
 
-        if (password.length() < config.getMinPasswordLength()) {
-            sendAuthResult(player, false, config.getMsgPasswordTooShort());
-            return;
+        if (config.isDebug()) {
+            logger.info("[DEBUG] ← Paper AUTH_COMPLETE: player={} wasRegister={}",
+                    player.getUsername(), wasRegister);
         }
 
-        boolean success;
-        boolean wasRegister = register;
-        if (register) {
-            success = authManager.tryRegister(uuid, username, password);
-            if (!success) {
-                sendAuthResult(player, false, config.getMsgAlreadyRegistered());
-                return;
-            }
-        } else {
-            success = authManager.tryLogin(uuid, password);
-        }
-
-        if (success) {
-            String msg = wasRegister ? config.getMsgRegisterSuccess() : config.getMsgLoginSuccess();
-            if (config.isDebug()) {
-                logger.info("[DEBUG] AUTH_ATTEMPT success: player={} register={}", username, wasRegister);
-            }
-            sendAuthResult(player, true, msg);
-            runPostAuthCommands(player, wasRegister);
-        } else {
-            if (authManager.getState(uuid) == AuthState.KICKED) {
-                if (config.isDebug()) {
-                    logger.info("[DEBUG] AUTH_ATTEMPT: player={} kicked after too many failures", username);
-                }
-                LoginListener.kick(player, config.getMsgKicked());
-                return;
-            }
-            if (config.isDebug()) {
-                logger.info("[DEBUG] AUTH_ATTEMPT failure: player={} attempts={}", username, authManager.getFailedAttempts(uuid));
-            }
-            sendAuthResult(player, false, config.getMsgLoginFailed());
-        }
+        authManager.setState(uuid, AuthState.AUTHENTICATED);
+        runPostAuthCommands(player, wasRegister);
     }
 
     /**
@@ -239,30 +211,18 @@ public class BridgeMessenger {
         }
 
         AuthState state = authManager.getState(uuid);
-        if (state == AuthState.PREMIUM || state == AuthState.SESSION_VALID
-                || state == AuthState.AUTHENTICATED) {
+        if (state == AuthState.PREMIUM || state == AuthState.AUTHENTICATED) {
             sendAuthSuccess(player);
         } else {
-            // If AuthMe says the player is registered, always show login dialog.
-            // Otherwise fall back to our own DB check.
-            boolean isNewPlayer = !authMeRegistered && authManager.isNewPlayer(uuid);
-            sendAuthRequired(player, isNewPlayer);
+            // AuthMe is the source of truth for whether the player has an account.
+            // Show login dialog if registered, register dialog if not.
+            sendAuthRequired(player, !authMeRegistered);
         }
     }
 
     // ------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------
-
-    private void sendAuthResult(Player player, boolean success, String message) {
-        String payload = String.join(SEP,
-            "AUTH_RESULT",
-            player.getUniqueId().toString(),
-            String.valueOf(success),
-            message
-        );
-        send(player, payload);
-    }
 
     private void runPostAuthCommands(Player player, boolean wasRegister) {
         List<String> cmds = wasRegister ? config.getOnRegisterCommands() : config.getOnLoginCommands();
