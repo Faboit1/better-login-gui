@@ -24,15 +24,23 @@ import java.util.UUID;
  *
  * <h2>Flow</h2>
  * <ol>
- *   <li>Velocity sends {@code AUTH_REQUIRED} to this bridge.</li>
- *   <li>{@link #supportsDialogs} checks the player's client protocol version via ViaVersion
- *       (soft-depend).  Clients at protocol {@value #DIALOG_MIN_PROTOCOL} or above get the
- *       native Minecraft dialog; older clients receive a plain-text prompt to use
- *       {@code /login} or {@code /register}, which AuthMe handles directly.</li>
- *   <li>When a 1.21.6+ player clicks the submit button, {@link #handleResponse} dispatches
- *       the appropriate {@code /login} or {@code /register} command as the player; AuthMe
- *       validates the credentials and fires its own events that {@link com.betterlogin.paper.listener.AuthMeListener}
- *       listens to.</li>
+ *   <li>Player joins – {@link com.betterlogin.paper.listener.AuthPlayerListener} detects them
+ *       via AuthMe and calls {@link #showLoginDialog} or {@link #showRegisterDialog}.</li>
+ *   <li>For modern clients (protocol &ge; {@value #DIALOG_MIN_PROTOCOL}) a native dialog is
+ *       shown with one password field (login) or two fields (register: password + confirm).</li>
+ *   <li>On submit the AuthMe API is called directly:
+ *       <ul>
+ *         <li>Login: {@code checkPassword} → if correct, {@code forceLogin} → fires
+ *             {@code LoginEvent} → {@link com.betterlogin.paper.listener.AuthMeListener} cleans up.</li>
+ *         <li>Register: passwords must match, then {@code forceRegister(player, password, true)}
+ *             → fires {@code RegisterEvent} → {@link com.betterlogin.paper.listener.AuthMeListener}
+ *             cleans up.</li>
+ *       </ul>
+ *   </li>
+ *   <li>If the password is wrong or passwords do not match, the dialog is re-shown after
+ *       {@value #DIALOG_RESHOW_DELAY_TICKS} ticks so the player can try again.</li>
+ *   <li>Old clients fall back to a chat prompt directing them to type {@code /login} or
+ *       {@code /register}, which AuthMe processes directly.</li>
  * </ol>
  */
 public class VanillaDialogHandler implements DialogHandler {
@@ -43,7 +51,7 @@ public class VanillaDialogHandler implements DialogHandler {
      */
     static final int DIALOG_MIN_PROTOCOL = 771;
 
-    /** Ticks to wait before re-showing the dialog after Cancel or a failed attempt (1 second = 20 ticks). */
+    /** Ticks to wait before re-showing the dialog after a failed attempt (1 second = 20 ticks). */
     private static final long DIALOG_RESHOW_DELAY_TICKS = 20L;
 
     private static final LegacyComponentSerializer LEGACY =
@@ -54,9 +62,9 @@ public class VanillaDialogHandler implements DialogHandler {
     private final PaperConfig config;
 
     public VanillaDialogHandler(BetterLoginBridge plugin, Set<UUID> pendingAuth, PaperConfig config) {
-        this.plugin = plugin;
+        this.plugin      = plugin;
         this.pendingAuth = pendingAuth;
-        this.config = config;
+        this.config      = config;
     }
 
     // ------------------------------------------------------------------
@@ -83,70 +91,31 @@ public class VanillaDialogHandler implements DialogHandler {
         }
     }
 
-    @Override
-    public void handleResponse(Player player, String input, boolean isRegister) {
-        // Clear the registration-flow tracking entry; pendingAuth stays set until
-        // AuthMe fires its LoginEvent/RegisterEvent (handled by AuthMeListener).
-        plugin.getPendingRegistration().remove(player.getUniqueId());
-
-        // Dispatch the appropriate AuthMe command on behalf of the player.
-        // AuthMe intercepts /login and /register and handles all credential
-        // verification, storage, and messaging itself.
-        String command = isRegister ? "register " + input.trim() : "login " + input.trim();
-        plugin.getServer().getScheduler().runTask(plugin, () -> {
-            if (player.isOnline()) {
-                player.performCommand(command);
-            }
-        });
-    }
-
     // ------------------------------------------------------------------
-    // Private helpers
+    // Dialog construction
     // ------------------------------------------------------------------
 
     /**
-     * Returns {@code true} if this player's Minecraft client supports the 1.21.6+
-     * native dialog screen.
+     * Builds and shows a native Paper dialog.
      *
-     * <p>If ViaVersion is present, the actual client protocol version is compared
-     * against {@link #DIALOG_MIN_PROTOCOL} using reflection (ViaVersion is not a
-     * compile-time dependency due to its POM having DOCTYPE declarations that some
-     * XML parsers reject).  Without ViaVersion (or if the reflection call fails),
-     * we assume the client is running the same version as the server.</p>
-     */
-    private boolean supportsDialogs(Player player) {
-        if (plugin.getServer().getPluginManager().isPluginEnabled("ViaVersion")) {
-            try {
-                // Equivalent to: com.viaversion.viaversion.api.Via.getAPI().getPlayerVersion(uuid)
-                Class<?> viaClass = Class.forName("com.viaversion.viaversion.api.Via");
-                Object api = viaClass.getMethod("getAPI").invoke(null);
-                int clientProtocol = (int) api.getClass()
-                        .getMethod("getPlayerVersion", java.util.UUID.class)
-                        .invoke(api, player.getUniqueId());
-                return clientProtocol >= DIALOG_MIN_PROTOCOL;
-            } catch (Exception ignored) {
-                // ViaVersion API call failed – fall through and assume support
-            }
-        }
-        return true;
-    }
-
-    /**
-     * Builds and shows a native Paper dialog to the player using values from config.
+     * <p>Login dialog: one password field.  On submit the AuthMe API verifies the
+     * password; on failure the dialog re-appears.<br>
+     * Register dialog: password + confirm-password fields.  Both must match before
+     * the AuthMe API registers the player.</p>
      *
-     * <p>If showing the dialog throws at runtime (e.g. missing API on this Paper build),
+     * <p>If {@link Player#showDialog} throws (e.g. server running older Paper build),
      * the player is removed from {@code pendingAuth} and the plain-text fallback is shown.</p>
      */
     private void openNativeDialog(Player player, boolean isRegister) {
         UUID uuid = player.getUniqueId();
 
-        // Read all dialog text and colours from config
+        // ── Text / colours from config ──────────────────────────────────────────
         Component title = Component.text(
-                isRegister ? config.getRegisterTitle()       : config.getLoginTitle(),
-                isRegister ? config.getRegisterTitleColor()  : config.getLoginTitleColor());
+                isRegister ? config.getRegisterTitle()      : config.getLoginTitle(),
+                isRegister ? config.getRegisterTitleColor() : config.getLoginTitleColor());
         Component body = Component.text(
-                isRegister ? config.getRegisterBody()        : config.getLoginBody(),
-                isRegister ? config.getRegisterBodyColor()   : config.getLoginBodyColor());
+                isRegister ? config.getRegisterBody()      : config.getLoginBody(),
+                isRegister ? config.getRegisterBodyColor() : config.getLoginBodyColor());
         Component submitLabel = Component.text(
                 isRegister ? config.getRegisterSubmitButton() : config.getLoginSubmitButton(),
                 isRegister ? config.getRegisterSubmitColor()  : config.getLoginSubmitColor());
@@ -155,46 +124,84 @@ public class VanillaDialogHandler implements DialogHandler {
                 isRegister ? config.getRegisterCancelColor()  : config.getLoginCancelColor());
         Component passwordLabel = Component.text(
                 isRegister ? config.getRegisterPasswordLabel() : config.getLoginPasswordLabel());
-        int maxLength = isRegister ? config.getRegisterMaxPasswordLength() : config.getLoginMaxPasswordLength();
-        boolean canClose = isRegister ? config.isRegisterCanCloseWithEscape() : config.isLoginCanCloseWithEscape();
+        int     maxLength = isRegister ? config.getRegisterMaxPasswordLength() : config.getLoginMaxPasswordLength();
+        boolean canClose  = isRegister ? config.isRegisterCanCloseWithEscape() : config.isLoginCanCloseWithEscape();
 
-        // Build the submit callback – invoked when the player clicks the submit button.
-        DialogActionCallback callback = (response, audience) -> {
+        // ── Input fields ────────────────────────────────────────────────────────
+        List<DialogInput> inputs;
+        if (isRegister) {
+            Component confirmLabel = Component.text(config.getRegisterConfirmPasswordLabel());
+            inputs = List.of(
+                    DialogInput.text("password",         passwordLabel).initial("").maxLength(maxLength).build(),
+                    DialogInput.text("confirm-password", confirmLabel) .initial("").maxLength(maxLength).build()
+            );
+        } else {
+            inputs = List.of(
+                    DialogInput.text("password", passwordLabel).initial("").maxLength(maxLength).build()
+            );
+        }
+
+        // ── Submit callback ─────────────────────────────────────────────────────
+        DialogActionCallback submitCallback = (response, audience) -> {
             String pw = response.getText("password");
             if (pw == null) pw = "";
-            final String password = pw;
-            // The callback may fire off the main thread – schedule to be safe.
-            plugin.getServer().getScheduler().runTask(plugin, () -> {
-                Player p = plugin.getServer().getPlayer(uuid);
-                if (p != null && pendingAuth.contains(uuid)) {
-                    handleResponse(p, password, isRegister);
-                }
-            });
+            final String password = pw.trim();
+
+            if (isRegister) {
+                String conf = response.getText("confirm-password");
+                if (conf == null) conf = "";
+                final String confirm = conf.trim();
+
+                plugin.getServer().getScheduler().runTask(plugin, () -> {
+                    Player p = plugin.getServer().getPlayer(uuid);
+                    if (p == null || !pendingAuth.contains(uuid)) return;
+
+                    if (!password.equals(confirm)) {
+                        // Passwords don't match – re-show dialog
+                        plugin.getServer().getScheduler().runTaskLater(plugin,
+                                () -> { if (p.isOnline() && pendingAuth.contains(uuid)) openNativeDialog(p, true); },
+                                DIALOG_RESHOW_DELAY_TICKS);
+                        return;
+                    }
+                    // Register via AuthMe API (auto-logs the player in)
+                    authMeForceRegister(p, password);
+                });
+            } else {
+                plugin.getServer().getScheduler().runTask(plugin, () -> {
+                    Player p = plugin.getServer().getPlayer(uuid);
+                    if (p == null || !pendingAuth.contains(uuid)) return;
+
+                    if (authMeCheckPassword(p.getName(), password)) {
+                        // Password correct – let AuthMe log the player in
+                        authMeForceLogin(p);
+                    } else {
+                        // Wrong password – re-show dialog
+                        plugin.getServer().getScheduler().runTaskLater(plugin,
+                                () -> { if (p.isOnline() && pendingAuth.contains(uuid)) openNativeDialog(p, false); },
+                                DIALOG_RESHOW_DELAY_TICKS);
+                    }
+                });
+            }
         };
 
-        // Build the cancel callback – re-shows the dialog after 1 s so the player
-        // is never left frozen without a dialog.
+        // ── Cancel callback – re-shows dialog so the player cannot escape auth ──
         DialogActionCallback cancelCallback = (response, audience) ->
             plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
                 Player p = plugin.getServer().getPlayer(uuid);
-                if (p != null && pendingAuth.contains(uuid)) {
-                    openNativeDialog(p, isRegister);
-                }
+                if (p != null && pendingAuth.contains(uuid)) openNativeDialog(p, isRegister);
             }, DIALOG_RESHOW_DELAY_TICKS);
 
+        // ── Build and show ──────────────────────────────────────────────────────
         Dialog dialog = Dialog.create(factory -> factory.empty()
                 .base(DialogBase.builder(title)
                         .body(List.of(DialogBody.plainMessage(body)))
-                        .inputs(List.of(
-                                DialogInput.text("password", passwordLabel)
-                                        .maxLength(maxLength)
-                                        .build()))
+                        .inputs(inputs)
                         .canCloseWithEscape(canClose)
                         .afterAction(DialogBase.DialogAfterAction.WAIT_FOR_RESPONSE)
                         .build())
                 .type(DialogType.confirmation(
                         ActionButton.builder(submitLabel)
-                                .action(DialogAction.customClick(callback, ClickCallback.Options.builder().build()))
+                                .action(DialogAction.customClick(submitCallback, ClickCallback.Options.builder().build()))
                                 .build(),
                         ActionButton.builder(cancelLabel)
                                 .action(DialogAction.customClick(cancelCallback, ClickCallback.Options.builder().build()))
@@ -216,24 +223,99 @@ public class VanillaDialogHandler implements DialogHandler {
 
     /**
      * Shown to players whose client does not support the 1.21.6+ native dialog.
-     *
-     * <p>The player is added to {@code pendingAuth} (so movement/interaction restrictions
-     * apply) and to {@code pendingRegistration} (so the {@code /login} and
-     * {@code /register} commands know which flow the player is in).</p>
+     * They must type {@code /login} or {@code /register} themselves; AuthMe handles it.
      */
     private void sendFallbackMessage(Player player, boolean isRegister) {
-        UUID uuid = player.getUniqueId();
-        // Keep player frozen via pendingAuth while they type their password
-        pendingAuth.add(uuid);
-        // Track whether this player is registering or logging in
-        plugin.getPendingRegistration().put(uuid, isRegister);
-
-        String command = isRegister ? "/register <password>" : "/login <password>";
-        String chatMsg   = config.getFallbackNoSupportMessage().replace("{command}", command);
-        String actionMsg = config.getFallbackActionBarMessage().replace("{command}", command);
-
+        pendingAuth.add(player.getUniqueId());
+        String command  = isRegister ? "/register <password> <confirmpassword>" : "/login <password>";
+        String chatMsg  = config.getFallbackNoSupportMessage().replace("{command}", command);
+        String barMsg   = config.getFallbackActionBarMessage().replace("{command}", command);
         player.sendMessage(LEGACY.deserialize(chatMsg));
-        player.sendActionBar(LEGACY.deserialize(actionMsg));
+        player.sendActionBar(LEGACY.deserialize(barMsg));
     }
 
+    // ------------------------------------------------------------------
+    // Version check
+    // ------------------------------------------------------------------
+
+    /**
+     * Returns {@code true} if this player's client supports the 1.21.6+ native dialog.
+     * Uses ViaVersion (soft-depend) when present to get the actual client protocol version;
+     * otherwise assumes the client matches the server version.
+     */
+    private boolean supportsDialogs(Player player) {
+        if (plugin.getServer().getPluginManager().isPluginEnabled("ViaVersion")) {
+            try {
+                Class<?> viaClass = Class.forName("com.viaversion.viaversion.api.Via");
+                Object api = viaClass.getMethod("getAPI").invoke(null);
+                int clientProtocol = (int) api.getClass()
+                        .getMethod("getPlayerVersion", java.util.UUID.class)
+                        .invoke(api, player.getUniqueId());
+                return clientProtocol >= DIALOG_MIN_PROTOCOL;
+            } catch (Exception ignored) {
+                // ViaVersion call failed – assume support
+            }
+        }
+        return true;
+    }
+
+    // ------------------------------------------------------------------
+    // AuthMe API (accessed via reflection – no compile-time dependency)
+    // ------------------------------------------------------------------
+
+    /**
+     * Verifies a player's password against the AuthMe database.
+     *
+     * @return {@code true} if the password matches, {@code false} otherwise or on error
+     */
+    private boolean authMeCheckPassword(String playerName, String password) {
+        try {
+            Class<?> apiClass = Class.forName("fr.xephi.authme.api.v3.AuthMeApi");
+            Object api = apiClass.getMethod("getInstance").invoke(null);
+            if (api == null) return false;
+            return (boolean) apiClass.getMethod("checkPassword", String.class, String.class)
+                    .invoke(api, playerName, password);
+        } catch (Exception e) {
+            plugin.getLogger().warning("AuthMe checkPassword failed for " + playerName + ": " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Forces AuthMe to log the player in without further password verification.
+     * Fires AuthMe's {@code LoginEvent}, which {@link com.betterlogin.paper.listener.AuthMeListener}
+     * listens to for cleanup.
+     */
+    private void authMeForceLogin(Player player) {
+        try {
+            Class<?> apiClass = Class.forName("fr.xephi.authme.api.v3.AuthMeApi");
+            Object api = apiClass.getMethod("getInstance").invoke(null);
+            if (api == null) return;
+            apiClass.getMethod("forceLogin", Player.class).invoke(api, player);
+        } catch (Exception e) {
+            plugin.getLogger().warning("AuthMe forceLogin failed for " + player.getName() + ": " + e.getMessage());
+        }
+    }
+
+    /**
+     * Registers a new player via the AuthMe API and auto-logs them in.
+     * Fires AuthMe's {@code RegisterEvent} (and subsequently {@code LoginEvent}),
+     * which {@link com.betterlogin.paper.listener.AuthMeListener} listens to for cleanup.
+     *
+     * @param player   the online player to register
+     * @param password the plain-text password chosen by the player
+     */
+    private void authMeForceRegister(Player player, String password) {
+        try {
+            Class<?> apiClass = Class.forName("fr.xephi.authme.api.v3.AuthMeApi");
+            Object api = apiClass.getMethod("getInstance").invoke(null);
+            if (api == null) return;
+            // forceRegister(Player, String, boolean autoLogin)
+            apiClass.getMethod("forceRegister", Player.class, String.class, boolean.class)
+                    .invoke(api, player, password, true);
+        } catch (Exception e) {
+            plugin.getLogger().warning("AuthMe forceRegister failed for " + player.getName() + ": " + e.getMessage());
+        }
+    }
 }
+

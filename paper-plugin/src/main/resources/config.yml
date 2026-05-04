@@ -4,7 +4,7 @@
 debug: false
 
 messages:
-  # Shown when a premium player (or session player) auto-logs in.
+  # Shown when authentication completes successfully.
   # Placeholder: {player} = username
   welcome: "&aWelcome, {player}!"
 
@@ -40,6 +40,8 @@ dialog:
     body: "Choose a password for your new account."
     body-color: "GRAY"
     password-label: "Password"
+    # Label for the second password field (confirmation)
+    confirm-password-label: "Confirm Password"
     max-password-length: 50
     submit-button: "Register"
     submit-color: "GREEN"
@@ -54,40 +56,3 @@ dialog:
     no-support-message: "&eYour client does not support dialog screens. Please type {command} to authenticate."
     action-bar-message: "&eType {command} to authenticate"
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Auth-display effects shown to players while they are authenticating.
-# These appear in addition to the dialog screen and apply to all client versions.
-# ──────────────────────────────────────────────────────────────────────────────
-auth-display:
-
-  # ── Title / subtitle ─────────────────────────────────────────────────────────
-  title:
-    enabled: true
-    # Shown to players who already have an account
-    login-title: "&6BetterLogin"
-    login-subtitle: "&7Please enter your password..."
-    # Shown to first-time players creating an account
-    register-title: "&6BetterLogin"
-    register-subtitle: "&7Please choose a password..."
-    # Timing in ticks (20 ticks = 1 second).
-    # Set 'stay' to a high number so the title persists until auth completes.
-    fade-in: 10
-    stay: 9999
-    fade-out: 20
-
-  # ── Boss bar ──────────────────────────────────────────────────────────────────
-  boss-bar:
-    enabled: true
-    text: "&eAuthentication Required"
-    # Color: PINK, BLUE, RED, GREEN, YELLOW, PURPLE, WHITE
-    color: "YELLOW"
-    # Style: PROGRESS, NOTCHED_6, NOTCHED_10, NOTCHED_12, NOTCHED_20
-    style: "PROGRESS"
-
-  # ── Action bar ────────────────────────────────────────────────────────────────
-  action-bar:
-    # Disabled by default as the dialog itself provides instructions.
-    # Enable to show a persistent reminder below the dialog.
-    enabled: false
-    login-message: "&eEnter your password in the dialog above"
-    register-message: "&eChoose a password in the dialog above"

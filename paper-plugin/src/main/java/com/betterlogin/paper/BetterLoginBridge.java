@@ -7,13 +7,9 @@ import com.betterlogin.paper.dialog.VanillaDialogHandler;
 import com.betterlogin.paper.listener.AuthMeListener;
 import com.betterlogin.paper.listener.AuthPlayerListener;
 import com.betterlogin.paper.listener.BridgeMessageListener;
-import net.kyori.adventure.bossbar.BossBar;
-import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
-import net.kyori.adventure.title.Title;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.time.Duration;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
@@ -26,11 +22,11 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>Responsibilities:
  * <ul>
- *   <li>Receive plugin-channel messages from the Velocity proxy</li>
+ *   <li>On player join, check AuthMe registration status and show the appropriate dialog.</li>
  *   <li>Show the native Minecraft dialog (1.21.6+ clients) or a chat-command prompt
- *       (older clients) for password entry</li>
- *   <li>Freeze unauthenticated players until auth completes</li>
- *   <li>Execute post-auth commands on the Paper server</li>
+ *       (older clients) for password entry.</li>
+ *   <li>Freeze unauthenticated players until auth completes.</li>
+ *   <li>Optionally notify a Velocity proxy via plugin-channel messages for server routing.</li>
  * </ul>
  */
 public class BetterLoginBridge extends JavaPlugin {
@@ -40,7 +36,6 @@ public class BetterLoginBridge extends JavaPlugin {
     public static final String SEP = "\0";
     /** Outbound message type sent from Paper to Velocity when the player is fully in-game. */
     public static final String MSG_PLAYER_READY = "PLAYER_READY";
-    private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.legacyAmpersand();
 
     /** UUIDs of players currently inside the authentication flow. */
     private final Set<UUID> pendingAuth = Collections.synchronizedSet(new HashSet<>());
@@ -50,16 +45,6 @@ public class BetterLoginBridge extends JavaPlugin {
      * Maps UUID → isNewPlayer.  {@link AuthPlayerListener} picks this up on join.
      */
     private final Map<UUID, Boolean> pendingDialogRequests = new ConcurrentHashMap<>();
-
-    /**
-     * Tracks whether a fallback-mode player (old client, no native dialog) is
-     * in the registration flow (true) or login flow (false).
-     * Cleared by {@link com.betterlogin.paper.listener.AuthMeListener} on auth success.
-     */
-    private final Map<UUID, Boolean> pendingRegistration = new ConcurrentHashMap<>();
-
-    /** Active Adventure boss bars, keyed by player UUID.  Removed on auth success or quit. */
-    private final Map<UUID, BossBar> activeBossBars = new ConcurrentHashMap<>();
 
     private PaperConfig paperConfig;
     private DialogHandler dialogHandler;
@@ -106,7 +91,7 @@ public class BetterLoginBridge extends JavaPlugin {
         getCommand("betterlogintest").setExecutor(testCmd);
         getCommand("betterlogintest").setTabCompleter(testCmd);
 
-        // Register AuthMe event listener to detect when authentication succeeds or fails.
+        // Register AuthMe event listener to detect when authentication succeeds.
         // AuthMe is a soft-depend; if it is not installed the listener is simply not registered.
         if (getServer().getPluginManager().isPluginEnabled("AuthMe")) {
             if (AuthMeListener.register(this)) {
@@ -125,45 +110,19 @@ public class BetterLoginBridge extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        // Remove all active boss bars before shutdown
-        activeBossBars.forEach((uuid, bar) -> {
-            Player p = getServer().getPlayer(uuid);
-            if (p != null) p.hideBossBar(bar);
-        });
-        activeBossBars.clear();
-
         getServer().getMessenger().unregisterIncomingPluginChannel(this, CHANNEL);
         getServer().getMessenger().unregisterOutgoingPluginChannel(this, CHANNEL);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Auth display + dialog helper
+    // Auth dialog helper
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * Shows the configured auth-display effects (title, boss bar, action bar) and then
-     * opens the appropriate login or registration dialog for the player.
+     * Opens the appropriate login or registration dialog for the player.
      * Call this only from the main thread (or via a scheduled task).
      */
-    public void showAuthEffectsAndDialog(Player player, boolean isNewPlayer) {
-        if (paperConfig.isAuthTitleEnabled()) {
-            player.showTitle(Title.title(
-                    LEGACY.deserialize(isNewPlayer ? paperConfig.getAuthRegisterTitle()    : paperConfig.getAuthLoginTitle()),
-                    LEGACY.deserialize(isNewPlayer ? paperConfig.getAuthRegisterSubtitle() : paperConfig.getAuthLoginSubtitle()),
-                    Title.Times.times(
-                            Duration.ofMillis(paperConfig.getAuthTitleFadeIn()  * 50L),
-                            Duration.ofMillis(paperConfig.getAuthTitleStay()    * 50L),
-                            Duration.ofMillis(paperConfig.getAuthTitleFadeOut() * 50L)
-                    )
-            ));
-        }
-        if (paperConfig.isAuthBossBarEnabled()) {
-            showBossBar(player);
-        }
-        if (paperConfig.isAuthActionBarEnabled()) {
-            player.sendActionBar(LEGACY.deserialize(
-                    isNewPlayer ? paperConfig.getAuthRegisterActionBar() : paperConfig.getAuthLoginActionBar()));
-        }
+    public void showAuthDialog(Player player, boolean isNewPlayer) {
         if (isNewPlayer) {
             dialogHandler.showRegisterDialog(player);
         } else {
@@ -172,37 +131,11 @@ public class BetterLoginBridge extends JavaPlugin {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Boss bar helpers
-    // ─────────────────────────────────────────────────────────────────────────
-
-    /** Creates and shows an auth boss bar to the player, replacing any existing one. */
-    public void showBossBar(Player player) {
-        removeBossBar(player.getUniqueId()); // Remove any existing bar first
-        BossBar bar = BossBar.bossBar(
-                LEGACY.deserialize(paperConfig.getAuthBossBarText()),
-                1.0f,
-                paperConfig.getAuthBossBarColor(),
-                paperConfig.getAuthBossBarStyle()
-        );
-        player.showBossBar(bar);
-        activeBossBars.put(player.getUniqueId(), bar);
-    }
-
-    /** Hides and removes the auth boss bar for this player, if one is active. */
-    public void removeBossBar(UUID uuid) {
-        BossBar bar = activeBossBars.remove(uuid);
-        if (bar == null) return;
-        Player p = getServer().getPlayer(uuid);
-        if (p != null) p.hideBossBar(bar);
-    }
-
-    // ─────────────────────────────────────────────────────────────────────────
     // Accessors
     // ─────────────────────────────────────────────────────────────────────────
 
-    public Set<UUID> getPendingAuth()              { return pendingAuth; }
+    public Set<UUID> getPendingAuth()                    { return pendingAuth; }
     public Map<UUID, Boolean> getPendingDialogRequests() { return pendingDialogRequests; }
-    public Map<UUID, Boolean> getPendingRegistration()   { return pendingRegistration; }
-    public DialogHandler getDialogHandler()        { return dialogHandler; }
-    public PaperConfig getPaperConfig()            { return paperConfig; }
+    public DialogHandler getDialogHandler()              { return dialogHandler; }
+    public PaperConfig getPaperConfig()                  { return paperConfig; }
 }

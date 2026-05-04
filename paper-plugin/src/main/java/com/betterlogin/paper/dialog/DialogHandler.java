@@ -24,14 +24,4 @@ public interface DialogHandler {
      * @param player the player to prompt
      */
     void showRegisterDialog(Player player);
-
-    /**
-     * Called by the listener layer when the player submits a response.
-     * The implementation must forward the result to the Velocity proxy.
-     *
-     * @param player     the player who submitted
-     * @param input      the raw text they entered
-     * @param isRegister true if this is a first-join registration, false if login
-     */
-    void handleResponse(Player player, String input, boolean isRegister);
 }

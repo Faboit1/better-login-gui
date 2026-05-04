@@ -14,26 +14,16 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Listens for plugin-channel messages from the Velocity proxy on channel {@value BetterLoginBridge#CHANNEL}.
+ * Listens for plugin-channel messages from an optional Velocity proxy on channel
+ * {@value BetterLoginBridge#CHANNEL}.
  *
  * <h2>Handled message types</h2>
  * <pre>
- * AUTH_REQUIRED\0{uuid}\0{isNewPlayer}  – queue dialog for player (shown on or after PlayerJoinEvent)
- * AUTH_SUCCESS\0{uuid}                  – mark player as authenticated (premium / session)
- * RUN_COMMANDS\0{uuid}\0{username}\0... – execute console commands
+ * AUTH_REQUIRED\0{uuid}\0{isNewPlayer}  – optional Velocity request; skipped if dialog
+ *                                         was already triggered locally on join
+ * AUTH_SUCCESS\0{uuid}                  – premium / session player auto-authenticated by Velocity
+ * RUN_COMMANDS\0{uuid}\0{username}\0... – execute console commands after auth
  * </pre>
- *
- * <h2>Timing note (two-phase handshake)</h2>
- * <p>Previously, Velocity sent {@code AUTH_REQUIRED} with a fixed 50 ms delay after
- * {@code ServerConnectedEvent}.  Paper's {@link PluginMessageListener} only delivers
- * plugin messages once the player is fully in-game, so the message was silently dropped
- * before {@code PlayerJoinEvent} fired.</p>
- *
- * <p>The fix: {@link AuthPlayerListener#onJoin} sends {@code PLAYER_READY} to Velocity
- * as soon as {@code PlayerJoinEvent} fires.  Velocity responds <em>immediately</em> with
- * {@code AUTH_REQUIRED} or {@code AUTH_SUCCESS}, which now arrives while the player is
- * definitely online.  A 500 ms fallback timer on the Velocity side handles the case
- * where the Paper bridge plugin is not installed.</p>
  */
 public class BridgeMessageListener implements PluginMessageListener {
 
@@ -46,10 +36,10 @@ public class BridgeMessageListener implements PluginMessageListener {
     private final Set<UUID> pendingAuth;
 
     public BridgeMessageListener(BetterLoginBridge plugin, DialogHandler dialogHandler,
-                                 Set<UUID> pendingAuth) {
-        this.plugin = plugin;
+                                  Set<UUID> pendingAuth) {
+        this.plugin        = plugin;
         this.dialogHandler = dialogHandler;
-        this.pendingAuth = pendingAuth;
+        this.pendingAuth   = pendingAuth;
     }
 
     @Override
@@ -67,7 +57,7 @@ public class BridgeMessageListener implements PluginMessageListener {
         }
         switch (type) {
             case "AUTH_REQUIRED" -> handleAuthRequired(parts, player);
-            case "AUTH_SUCCESS"  -> handleAuthSuccess(parts, player);
+            case "AUTH_SUCCESS"  -> handleAuthSuccess(player);
             case "RUN_COMMANDS"  -> handleRunCommands(parts);
             default -> plugin.getLogger().warning("Unknown bridge message type: " + type);
         }
@@ -76,12 +66,8 @@ public class BridgeMessageListener implements PluginMessageListener {
     // ------------------------------------------------------------------
 
     /**
-     * Queues the dialog request and shows it once the player is fully spawned.
-     *
-     * <p>The request is stored in {@code pendingDialogRequests}.  A runTask is
-     * scheduled for the next tick.  If the player is already online by then, the
-     * dialog is shown immediately.  Otherwise, {@link AuthPlayerListener#onJoin}
-     * removes the entry and shows the dialog after {@code PlayerJoinEvent}.</p>
+     * Velocity requesting auth for this player.  Skipped if the dialog was already
+     * triggered locally (player is already in pendingAuth).
      */
     private void handleAuthRequired(String[] parts, Player player) {
         if (parts.length < 3) return;
@@ -93,28 +79,34 @@ public class BridgeMessageListener implements PluginMessageListener {
                     + " isNewPlayer=" + isNewPlayer);
         }
 
-        // Store the request; AuthPlayerListener.onJoin() will pick it up if the player
-        // hasn't fully spawned yet.
+        // If the dialog was already shown locally on join, skip the duplicate request.
+        if (pendingAuth.contains(uuid)) {
+            if (plugin.getConfig().getBoolean("debug", false)) {
+                plugin.getLogger().info("[DEBUG] AUTH_REQUIRED skipped – player already pending: " + player.getName());
+            }
+            plugin.getPendingDialogRequests().remove(uuid);
+            return;
+        }
+
+        // Store the request; AuthPlayerListener.onJoin() will pick it up if PlayerJoinEvent
+        // has not fired yet (very rare race condition).
         plugin.getPendingDialogRequests().put(uuid, isNewPlayer);
 
-        // Also try immediately on the next main-thread tick in case PlayerJoinEvent has
-        // already fired (e.g. player switched servers on an already-loaded backend).
+        // Show the dialog on the next main-thread tick if the player is already in-game.
         plugin.getServer().getScheduler().runTask(plugin, () -> {
-            // Check if AuthPlayerListener.onJoin() already handled this (map entry gone)
             if (!plugin.getPendingDialogRequests().containsKey(uuid)) return;
             if (!player.isOnline()) return;
             plugin.getPendingDialogRequests().remove(uuid);
-            showDialogWithEffects(player, isNewPlayer);
+            plugin.showAuthDialog(player, isNewPlayer);
         });
     }
 
-    private void handleAuthSuccess(String[] parts, Player player) {
+    /** Velocity signals that a premium / session player authenticated automatically. */
+    private void handleAuthSuccess(Player player) {
         if (plugin.getConfig().getBoolean("debug", false)) {
             plugin.getLogger().info("[DEBUG] AUTH_SUCCESS: player=" + player.getName());
         }
         pendingAuth.remove(player.getUniqueId());
-        plugin.removeBossBar(player.getUniqueId());
-        player.clearTitle();
 
         PaperConfig cfg = plugin.getPaperConfig();
         String welcomeMsg = cfg.getWelcomeMessage().replace("{player}", player.getName());
@@ -130,18 +122,5 @@ public class BridgeMessageListener implements PluginMessageListener {
                         plugin.getServer().getConsoleSender(), cmd);
             }
         });
-    }
-
-    // ------------------------------------------------------------------
-    // Display helpers
-    // ------------------------------------------------------------------
-
-    /**
-     * Package-private – delegates to {@link BetterLoginBridge#showAuthEffectsAndDialog}.
-     * Kept as a named method so it can be called from unit tests or within this package
-     * without exposing it as part of the public API.
-     */
-    void showDialogWithEffects(Player player, boolean isNewPlayer) {
-        plugin.showAuthEffectsAndDialog(player, isNewPlayer);
     }
 }

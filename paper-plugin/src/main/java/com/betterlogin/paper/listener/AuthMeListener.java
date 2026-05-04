@@ -26,9 +26,6 @@ public class AuthMeListener implements Listener {
     private static final LegacyComponentSerializer LEGACY =
             LegacyComponentSerializer.legacyAmpersand();
 
-    /** Ticks to wait before re-showing the dialog after a failed attempt (1 s = 20 ticks). */
-    private static final long RESHOW_DELAY_TICKS = 20L;
-
     private final BetterLoginBridge plugin;
 
     private AuthMeListener(BetterLoginBridge plugin) {
@@ -39,7 +36,7 @@ public class AuthMeListener implements Listener {
      * Registers AuthMe event handlers using Bukkit's reflection-based event API.
      * No AuthMe classes are referenced at compile time.
      *
-     * @return {@code true} if all three event types were found and registered
+     * @return {@code true} if the required event types were found and registered
      */
     public static boolean register(BetterLoginBridge plugin) {
         try {
@@ -47,8 +44,6 @@ public class AuthMeListener implements Listener {
                     Class.forName("fr.xephi.authme.events.LoginEvent").asSubclass(Event.class);
             Class<? extends Event> registerEvent =
                     Class.forName("fr.xephi.authme.events.RegisterEvent").asSubclass(Event.class);
-            Class<? extends Event> failedLoginEvent =
-                    Class.forName("fr.xephi.authme.events.FailedLoginEvent").asSubclass(Event.class);
 
             AuthMeListener listener = new AuthMeListener(plugin);
 
@@ -62,11 +57,6 @@ public class AuthMeListener implements Listener {
                     (l, event) -> listener.handleAuthSuccess(getPlayer(event), true),
                     plugin, true);
 
-            plugin.getServer().getPluginManager().registerEvent(
-                    failedLoginEvent, listener, EventPriority.MONITOR,
-                    (l, event) -> listener.onFailedLogin(getPlayer(event)),
-                    plugin, false);
-
             return true;
         } catch (ClassNotFoundException e) {
             return false;
@@ -74,24 +64,6 @@ public class AuthMeListener implements Listener {
     }
 
     // ------------------------------------------------------------------
-
-    private void onFailedLogin(Player player) {
-        if (player == null) return;
-        UUID uuid = player.getUniqueId();
-        if (!plugin.getPendingAuth().contains(uuid)) return;
-
-        if (plugin.getConfig().getBoolean("debug", false)) {
-            plugin.getLogger().info("[DEBUG] AuthMe FailedLoginEvent for " + player.getName()
-                    + " – re-showing dialog");
-        }
-
-        // Re-show the dialog after a brief delay so the player can try again.
-        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-            if (player.isOnline() && plugin.getPendingAuth().contains(uuid)) {
-                plugin.getDialogHandler().showLoginDialog(player);
-            }
-        }, RESHOW_DELAY_TICKS);
-    }
 
     private void handleAuthSuccess(Player player, boolean wasRegister) {
         if (player == null) return;
@@ -104,9 +76,6 @@ public class AuthMeListener implements Listener {
         }
 
         plugin.getPendingAuth().remove(uuid);
-        plugin.getPendingRegistration().remove(uuid);
-        plugin.removeBossBar(uuid);
-        player.clearTitle();
 
         PaperConfig cfg = plugin.getPaperConfig();
         String welcomeMsg = cfg.getWelcomeMessage().replace("{player}", player.getName());
