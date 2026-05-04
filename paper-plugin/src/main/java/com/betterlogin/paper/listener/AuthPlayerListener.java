@@ -37,7 +37,7 @@ import java.util.UUID;
  */
 public class AuthPlayerListener implements Listener {
 
-    private static final long JOIN_DELAY_TICKS = 10L; // 0.5 s – let the client finish loading
+    private static final long JOIN_DELAY_TICKS = 10L; // 0.5 s - let the client finish loading
 
     private final BetterLoginBridge plugin;
     private final DialogHandler dialogHandler;

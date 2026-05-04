@@ -4,7 +4,7 @@
 debug: false
 
 messages:
-  # Shown when authentication completes successfully.
+  # Shown after any successful authentication (manual login/register or auto-login via session/premium).
   # Placeholder: {player} = username
   welcome: "&aWelcome, {player}!"
 

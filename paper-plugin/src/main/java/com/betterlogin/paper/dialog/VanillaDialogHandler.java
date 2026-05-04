@@ -145,12 +145,12 @@ public class VanillaDialogHandler implements DialogHandler {
         DialogActionCallback submitCallback = (response, audience) -> {
             String pw = response.getText("password");
             if (pw == null) pw = "";
-            final String password = pw.trim();
+            final String password = pw;
 
             if (isRegister) {
                 String conf = response.getText("confirm-password");
                 if (conf == null) conf = "";
-                final String confirm = conf.trim();
+                final String confirm = conf;
 
                 plugin.getServer().getScheduler().runTask(plugin, () -> {
                     Player p = plugin.getServer().getPlayer(uuid);
@@ -227,7 +227,7 @@ public class VanillaDialogHandler implements DialogHandler {
      */
     private void sendFallbackMessage(Player player, boolean isRegister) {
         pendingAuth.add(player.getUniqueId());
-        String command  = isRegister ? "/register <password> <confirmpassword>" : "/login <password>";
+        String command  = isRegister ? "/register <password> <confirm-password>" : "/login <password>";
         String chatMsg  = config.getFallbackNoSupportMessage().replace("{command}", command);
         String barMsg   = config.getFallbackActionBarMessage().replace("{command}", command);
         player.sendMessage(LEGACY.deserialize(chatMsg));
